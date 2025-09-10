@@ -153,3 +153,30 @@ input[type="date"]::-webkit-date-and-time-value{
     scroll-behavior: auto !important;
   }
 }
+
+/* Marca en el header del dashboard */
+.dash-header .brand{
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+  text-decoration:none;
+  color:inherit;
+}
+.dash-header .brand-logo{
+  width:26px;
+  height:26px;
+  border-radius:7px;
+  object-fit:cover;
+  box-shadow:0 6px 18px rgba(34,211,238,.25);
+}
+.dash-header .brand-dot{
+  width:26px;
+  height:26px;
+  border-radius:7px;
+  background:linear-gradient(180deg,#34d399,#059669);
+  box-shadow:0 10px 30px rgba(16,185,129,.35);
+}
+.dash-header .brand-name{
+  font-weight:800;
+  letter-spacing:.2px;
+}

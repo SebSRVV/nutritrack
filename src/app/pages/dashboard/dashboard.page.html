@@ -1,9 +1,9 @@
 <section class="dash-root" *ngIf="!loading(); else skel">
   <header class="dash-header container">
-    <div class="brand">
-      <span class="dot"></span>
-      <strong>Dashboard</strong>
-    </div>
+    <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
+      <span class="brand-name">NutriTrack</span>
+    </a>
+
 
     <nav class="quick-links">
       <a routerLink="/profile" class="btn btn-ghost">
