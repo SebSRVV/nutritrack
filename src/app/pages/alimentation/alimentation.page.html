@@ -1,0 +1,115 @@
+<section class="ali-root" *ngIf="!loading(); else skel">
+
+  <!-- Header -->
+  <header class="ali-header container">
+    <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
+     <strong>NutriTrack</strong>
+    </a>
+    <nav class="actions">
+      <a routerLink="/dashboard" class="btn">Dashboard</a>
+      <a routerLink="/profile" class="btn ghost">
+        <lucide-icon [img]="SettingsIcon"></lucide-icon> Configuraciones
+      </a>
+    </nav>
+  </header>
+
+  <div class="container grid">
+    <!-- Formulario / análisis -->
+    <section class="card form-col">
+      <h2 class="title">
+        <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Registro de alimentación
+      </h2>
+
+      <div class="meal-tabs" role="tablist" aria-label="Tipo de comida">
+        <button class="tab" [class.sel]="mealType()==='breakfast'" (click)="mealType.set('breakfast')">
+          <lucide-icon [img]="AppleIcon"></lucide-icon> Desayuno
+        </button>
+        <button class="tab" [class.sel]="mealType()==='lunch'" (click)="mealType.set('lunch')">
+          <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Almuerzo
+        </button>
+        <button class="tab" [class.sel]="mealType()==='dinner'" (click)="mealType.set('dinner')">
+          <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Cena
+        </button>
+        <button class="tab" [class.sel]="mealType()==='snack'" (click)="mealType.set('snack')">
+          <lucide-icon [img]="AppleIcon"></lucide-icon> Snack
+        </button>
+      </div>
+
+      <label class="lbl">Describe tu comida (p.ej. "2 huevos, 1 taza de arroz, 1 manzana")</label>
+      <textarea rows="3" class="food-input"
+                [value]="text()"
+                (input)="text.set($any($event.target).value)"></textarea>
+
+      <div class="row-actions">
+        <button class="btn" (click)="analyze()" [disabled]="analyzing() || !text().trim()">
+          <lucide-icon [img]="PlusIcon"></lucide-icon> Analizar con API
+        </button>
+        <button class="btn ghost" (click)="openManualPrompt()" [disabled]="!text().trim()">
+          Agregar manual
+        </button>
+      </div>
+
+      <div class="analysis" *ngIf="analysis()">
+        <div class="kcal">
+          <lucide-icon [img]="FlameIcon"></lucide-icon>
+          <b>{{ analysis()!.kcal }}</b> kcal
+          <span class="muted">• {{ analysis()!.protein_g }} g prot • {{ analysis()!.carbs_g }} g carb • {{ analysis()!.fat_g }} g grasa</span>
+        </div>
+        <ul class="items">
+          <li *ngFor="let it of analysis()!.items">
+            <span>{{ it.qty }} {{ it.unit || '' }} {{ it.name }}</span>
+            <b>{{ it.kcal }} kcal</b>
+          </li>
+        </ul>
+        <div class="row-actions">
+          <button class="btn" (click)="addFromAnalysis()">Guardar (+{{ analysis()!.kcal }} kcal)</button>
+        </div>
+      </div>
+
+      <p class="err" *ngIf="analysisErr()">{{ analysisErr() }}</p>
+    </section>
+
+    <!-- Overview / listado -->
+    <section class="card overview">
+      <h2 class="title">Resumen del día</h2>
+
+      <div class="meter" role="progressbar"
+           [attr.aria-valuemin]="0" [attr.aria-valuemax]="recKcal()" [attr.aria-valuenow]="todayTotal()">
+        <div class="bar" [style.width.%]="pct()"></div>
+        <div class="value">{{ todayTotal() }} / {{ recKcal() }} kcal</div>
+      </div>
+
+      <div class="totals">
+        <div class="t" *ngFor="let k of mealKeys">
+          <div class="k">{{ labelOf(k) }}</div>
+          <div class="v">{{ totalFor(k) }} kcal</div>
+        </div>
+      </div>
+
+      <div class="groups">
+        <div class="group" *ngFor="let k of mealKeys">
+          <div class="ghead">{{ labelOf(k) }}</div>
+          <ul class="list">
+            <li class="item" *ngFor="let m of groupList(k)">
+              <div class="desc">{{ m.description }}</div>
+              <div class="meta">
+                <span class="kcal"><lucide-icon [img]="FlameIcon"></lucide-icon> {{ m.calories }} kcal</span>
+                <span class="time"><lucide-icon [img]="ClockIcon"></lucide-icon> {{ fmtTime(m.logged_at) }}</span>
+              </div>
+              <button class="icon-btn danger" (click)="deleteLog(m)" aria-label="Eliminar">
+                <lucide-icon [img]="Trash2Icon"></lucide-icon>
+              </button>
+            </li>
+            <li class="empty" *ngIf="groupList(k).length === 0">Sin registros.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="err center" *ngIf="err()">{{ err() }}</p>
+</section>
+
+<ng-template #skel>
+  <div class="container loading">Cargando alimentación…</div>
+</ng-template>
