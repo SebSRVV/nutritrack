@@ -14,15 +14,18 @@ type Sex = 'female' | 'male';
 type ActivityLevel = 'sedentary' | 'moderate' | 'very_active';
 type DietType = 'low_carb' | 'caloric_deficit' | 'surplus';
 
-type UserMeta = {
-  username?: string;
-  dob?: string;
-  sex?: Sex;
-  height_cm?: number;
-  weight_kg?: number;
-  bmi?: number;
-  activity_level?: ActivityLevel;
-  diet_type?: DietType;
+type ProfileRow = {
+  id: string;
+  username: string | null;
+  dob: string | null;
+  sex: Sex | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  bmi: number | null;
+  activity_level: ActivityLevel;
+  diet_type: DietType;
+  created_at: string;
+  updated_at: string;
 };
 
 function calcAge(dobStr?: string): number | null {
@@ -73,22 +76,26 @@ export default class ProfilePage {
   private supabase = inject(SupabaseService);
   private router = inject(Router);
 
+  // UI state
   loading = signal(true);
   saving  = signal(false);
   deleting = signal(false);
   serverError = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  // Auth basics (email/last sign in para la cabecera)
   email   = signal<string>('');
   userId  = signal<string>('');
   createdAt = signal<string>('');
   lastSignInAt = signal<string>('');
+
+  // Datos del perfil
   username = signal<string>('');
   sex = signal<Sex>('female');
   dob  = signal<string>('');
 
-  activityLevel = signal<ActivityLevel>('sedentary');
-  dietType = signal<DietType>('caloric_deficit');
+  activityLevel = signal<ActivityLevel>('moderate');         // default DB
+  dietType = signal<DietType>('caloric_deficit');            // default DB
 
   form = this.fb.group({
     height_cm: this.fb.control(170, { validators: [Validators.required, Validators.min(80), Validators.max(230)] }),
@@ -126,9 +133,11 @@ export default class ProfilePage {
   confirmText = signal('');
 
   constructor() {
+    // Sync slider -> signals
     this.hCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe(v => this.heightVal.set(v));
     this.wCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe(v => this.weightVal.set(v));
 
+    // Clamp manual
     effect(() => {
       const h = this.heightVal();
       if (h < 80) this.hCtrl.setValue(80, { emitEvent: false });
@@ -141,11 +150,15 @@ export default class ProfilePage {
     this.init();
   }
 
+  // ==== DATA ====
   private async init() {
     try {
       this.loading.set(true);
-      const { data: { user }, error } = await this.supabase.client.auth.getUser();
-      if (error) throw error;
+
+      // 1) auth info (email/ult. acceso) + uid
+      const { data: ures, error: uerr } = await this.supabase.client.auth.getUser();
+      if (uerr) throw uerr;
+      const user = ures.user;
       if (!user) {
         await this.router.navigate(['/login'], { queryParams: { auth: 'required', redirect: '/profile' } });
         return;
@@ -155,25 +168,39 @@ export default class ProfilePage {
       this.createdAt.set(user.created_at ?? '');
       this.lastSignInAt.set((user.last_sign_in_at as string) ?? '');
 
-      const md = (user.user_metadata ?? {}) as UserMeta;
-      this.username.set(md.username ?? '');
-      this.sex.set((md.sex ?? 'female') as Sex);
-      this.dob.set(md.dob ?? '');
-      this.activityLevel.set((md.activity_level ?? 'sedentary') as ActivityLevel);
-      this.dietType.set((md.diet_type ?? 'caloric_deficit') as DietType);
-
-      this.form.patchValue({
-        height_cm: Number(md.height_cm ?? 170),
-        weight_kg: Number(md.weight_kg ?? 70),
-      }, { emitEvent: true });
-
-      this.heightVal.set(this.form.controls.height_cm.value);
-      this.weightVal.set(this.form.controls.weight_kg.value);
+      // 2) perfil desde la tabla
+      await this.loadProfile();
     } catch (e: any) {
       this.serverError.set(e?.message ?? 'No se pudo cargar tu perfil.');
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private async loadProfile() {
+    const { data, error } = await this.supabase.client
+      .from('profiles')
+      .select('id, username, dob, sex, height_cm, weight_kg, bmi, activity_level, diet_type, created_at, updated_at')
+      .eq('id', this.userId())
+      .single<ProfileRow>();
+
+    if (error) throw error;
+
+    // Pinta cabecera/personales
+    this.username.set(data.username ?? '');
+    this.sex.set((data.sex ?? 'female') as Sex);
+    this.dob.set(data.dob ?? '');
+
+    // Form/editores
+    const h = Number(data.height_cm ?? 170);
+    const w = Number(data.weight_kg ?? 70);
+    this.form.patchValue({ height_cm: h, weight_kg: w }, { emitEvent: true });
+    this.heightVal.set(h);
+    this.weightVal.set(w);
+
+    // Preferencias
+    this.activityLevel.set(data.activity_level ?? 'moderate');
+    this.dietType.set(data.diet_type ?? 'caloric_deficit');
   }
 
   setActivity(v: ActivityLevel){ this.activityLevel.set(v); }
@@ -182,24 +209,32 @@ export default class ProfilePage {
   async save() {
     this.serverError.set(null);
     this.successMessage.set(null);
+
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.saving.set(true);
+
     const v = this.form.getRawValue();
+
     try {
-      const { error } = await this.supabase.client.auth.updateUser({
-        data: {
-          username:  this.username(),
-          dob:       this.dob(),
-          sex:       this.sex(),
-          height_cm: v.height_cm,
-          weight_kg: v.weight_kg,
-          bmi: this.bmi() ?? undefined,
-          activity_level: this.activityLevel(),
-          diet_type: this.dietType(),
-        }
-      });
+      // guardamos todo en la tabla profiles (RLS: id = auth.uid())
+      const payload = {
+        height_cm: v.height_cm,
+        weight_kg: v.weight_kg,
+        bmi: this.bmi(),
+        activity_level: this.activityLevel(),
+        diet_type: this.dietType()
+      };
+
+      const { error } = await this.supabase.client
+        .from('profiles')
+        .update(payload)
+        .eq('id', this.userId());
+
       if (error) throw error;
+
       this.successMessage.set('Cambios guardados correctamente.');
+      // refrescamos por si hay triggers/normalización
+      await this.loadProfile();
     } catch (e: any) {
       this.serverError.set(e?.message ?? 'No se pudo guardar.');
     } finally {
@@ -207,6 +242,7 @@ export default class ProfilePage {
     }
   }
 
+  // ==== MODAL ELIMINAR / LOGOUT ====
   openDeleteModal() { this.confirmText.set(''); this.showDeleteModal.set(true); this.serverError.set(null); this.successMessage.set(null); }
   closeDeleteModal() { this.showDeleteModal.set(false); }
 
