@@ -1,0 +1,193 @@
+<main class="prof-root" *ngIf="!loading(); else skeleton">
+  <header class="prof-header container">
+    <a routerLink="/" class="brand">
+      <span class="dot"></span>
+      <strong>NutriTrack</strong>
+    </a>
+
+    <div class="actions">
+      <button class="btn danger outline" (click)="openDeleteModal()">
+        <lucide-icon [img]="Trash2Icon"></lucide-icon>
+        Eliminar cuenta
+      </button>
+      <button class="btn btn-logout" (click)="logout()">
+        <lucide-icon [img]="LogOutIcon"></lucide-icon>
+        Cerrar sesión
+      </button>
+    </div>
+  </header>
+
+  <section class="container grid grid-2col">
+    <!-- IZQUIERDA: Información -->
+    <div class="col-left">
+      <div class="card">
+        <h2 class="title">Perfil profesional</h2>
+        <p class="sub">Información de cuenta y métricas personales.</p>
+
+        <div class="surface id-block">
+          <div class="row">
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="MailIcon"></lucide-icon> Email</div>
+              <div class="value mono">{{ email() }}</div>
+            </div>
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="UserIcon"></lucide-icon> Usuario</div>
+              <div class="value">{{ username() || '—' }}</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="IdCardIcon"></lucide-icon> ID</div>
+              <div class="value mono small">{{ userId() }}</div>
+            </div>
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="ActivityIcon"></lucide-icon> Estado</div>
+              <div class="value">{{ lastSignInAt() ? 'Activo' : '—' }}</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="CalendarIcon"></lucide-icon> Creado</div>
+              <div class="value mono">{{ createdAt() | date:'medium' }}</div>
+            </div>
+            <div class="row-item">
+              <div class="label"><lucide-icon [img]="CalendarIcon"></lucide-icon> Último acceso</div>
+              <div class="value mono">{{ lastSignInAt() | date:'medium' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface info-block">
+          <div class="info-item">
+            <div class="label"><lucide-icon [img]="CalendarIcon"></lucide-icon> Fecha de nacimiento</div>
+            <div class="value mono">{{ dob() || '—' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Edad</div>
+            <div class="value">{{ age() ?? '—' }} años</div>
+          </div>
+          <div class="info-item">
+            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Días para tu cumple</div>
+            <div class="value">{{ daysToBday() ?? '—' }}</div>
+          </div>
+          <div class="info-item">
+            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Sexo</div>
+            <div class="value">{{ sex() === 'male' ? 'Hombre' : 'Mujer' }}</div>
+          </div>
+        </div>
+
+        <div class="messages">
+          <p class="success" *ngIf="successMessage()">{{ successMessage() }}</p>
+          <p class="err server" *ngIf="serverError()">{{ serverError() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- DERECHA: Editores + BMI + resumen -->
+    <aside class="col-right">
+      <form (ngSubmit)="save()" [formGroup]="form" class="card editors" novalidate>
+        <!-- Altura -->
+        <div class="sliders">
+          <div class="field-label"><lucide-icon [img]="RulerIcon"></lucide-icon> Altura (cm)
+            <span class="chip">{{ form.controls.height_cm.value }} cm</span>
+          </div>
+          <div class="range-wrap">
+            <div class="bubble" [style.left.%]="heightPct()">{{ form.controls.height_cm.value }} cm</div>
+            <input class="range" type="range" min="80" max="230" formControlName="height_cm">
+            <input class="number" type="number" min="80" max="230"
+                   [value]="form.controls.height_cm.value"
+                   (input)="setHeight($any($event.target).valueAsNumber)">
+          </div>
+          <div class="meter">
+            <div class="bar" [style.width.%]="heightPct()"></div>
+            <div class="label">{{ heightPct() }}%</div>
+          </div>
+        </div>
+
+        <!-- Peso -->
+        <div class="sliders">
+          <div class="field-label"><lucide-icon [img]="ScaleIcon"></lucide-icon> Peso (kg)
+            <span class="chip cyan">{{ form.controls.weight_kg.value }} kg</span>
+          </div>
+          <div class="range-wrap">
+            <div class="bubble cyan" [style.left.%]="weightPct()">{{ form.controls.weight_kg.value }} kg</div>
+            <input class="range cyan" type="range" min="25" max="250" formControlName="weight_kg">
+            <input class="number" type="number" min="25" max="250"
+                   [value]="form.controls.weight_kg.value"
+                   (input)="setWeight($any($event.target).valueAsNumber)">
+          </div>
+          <div class="meter cyan">
+            <div class="bar" [style.width.%]="weightPct()"></div>
+            <div class="label">{{ weightPct() }}%</div>
+          </div>
+        </div>
+
+        <!-- BMI -->
+        <div class="surface bmi-card">
+          <div class="bmi">
+            <div class="bmi-left">
+              <div class="bmi-ic" [ngClass]="bmiStatus().color">
+                <lucide-icon [img]="HeartPulseIcon"></lucide-icon>
+              </div>
+              <div>
+                <div class="bmi-title">Índice de Masa Corporal</div>
+                <div class="bmi-val">{{ bmi() ?? '—' }}</div>
+              </div>
+            </div>
+            <div class="bmi-right">
+              <span class="pill" [ngClass]="bmiStatus().color">{{ bmiStatus().label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary full" type="submit" [disabled]="saving()">
+          <lucide-icon [img]="SaveIcon"></lucide-icon>
+          {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </form>
+
+      <div class="card mini-viz">
+        <div class="viz">
+          <div class="tile">
+            <span>Altura</span>
+            <div class="spark"><div class="spark-bar" [style.height.%]="Math.max(20, heightPct())"></div></div>
+            <strong>{{ form.controls.height_cm.value }} cm</strong>
+          </div>
+          <div class="tile">
+            <span>Peso</span>
+            <div class="spark"><div class="spark-bar cyan" [style.height.%]="Math.max(20, weightPct())"></div></div>
+            <strong>{{ form.controls.weight_kg.value }} kg</strong>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Modal eliminar cuenta -->
+  <div class="modal-backdrop" *ngIf="showDeleteModal()" (click)="closeDeleteModal()"></div>
+  <div class="modal" *ngIf="showDeleteModal()">
+    <div>
+      <div class="modal-header">
+        <lucide-icon [img]="ShieldAlertIcon"></lucide-icon>
+        <strong>Eliminar cuenta</strong>
+      </div>
+      <p>Esta acción es permanente e irreversible. Escribe <b>eliminar</b> para confirmar.</p>
+      <input class="confirm-input" type="text" placeholder="eliminar"
+             [value]="confirmText()"
+             (input)="confirmText.set($any($event.target).value)">
+      <div class="modal-actions">
+        <button class="btn" (click)="closeDeleteModal()">Cancelar</button>
+        <button class="btn danger"
+                [disabled]="confirmText().toLowerCase() !== 'eliminar' || deleting()"
+                (click)="deleteAccount()">
+          <lucide-icon [img]="Trash2Icon"></lucide-icon>
+          {{ deleting() ? 'Eliminando…' : 'Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<ng-template #skeleton>
+  <div class="loading container">Cargando perfil…</div>
+</ng-template>
