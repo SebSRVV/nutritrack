@@ -1,0 +1,36 @@
+/* src/app/app.css */
+
+/* El componente raíz no introduce wrapper extra */
+:host { display: contents; }
+
+/* Área principal: ocupa toda la altura y permite sticky/blur internos de las páginas */
+.app-root {
+  min-height: 100dvh;
+  isolation: isolate;        /* evita que filtros/blur afecten fuera */
+  display: block;
+}
+
+/* Link “Saltar al contenido” para accesibilidad */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  z-index: 10000;
+  padding: .6rem .9rem;
+  border-radius: .5rem;
+  background: #111827;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  outline: none;
+}
+
+/* Estados de carga de rutas (opcional) */
+:root .route-loading {
+  opacity: .6;
+  pointer-events: none;
+}

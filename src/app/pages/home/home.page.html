@@ -1,0 +1,117 @@
+<section class="nt-root" [@page] [@heroBits]>
+
+  <!-- Navbar -->
+  <header class="nt-nav">
+    <div class="container nav-inner">
+      <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
+        <span class="brand-dot"></span>
+        <span class="brand-name">NutriTrack</span>
+      </a>
+      <nav class="nav-actions" aria-label="Navegación principal">
+        <a routerLink="/" routerLinkActive="active" class="nav-link">Inicio</a>
+        <a routerLink="/reports" routerLinkActive="active" class="nav-link">Reportes</a>
+        <a routerLink="/register" class="btn btn-primary">Empezar ahora</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Glow decorativo -->
+  <div class="hero-glow" [@glow] aria-hidden="true"></div>
+
+  <!-- Hero -->
+  <main class="page-content">
+    <div class="container hero">
+      <span class="hero-bit badge">
+        <lucide-icon [img]="ActivityIcon" class="icon-16" aria-hidden="true"></lucide-icon>
+        Alimentación saludable
+      </span>
+
+      <h1 class="hero-bit hero-title">Tu guía simple para comer mejor</h1>
+
+      <p class="hero-bit hero-sub">
+        Registra tus comidas, fija metas alcanzables y observa tu progreso con claridad.
+        NutriTrack te acompaña.
+      </p>
+
+      <div class="hero-bit hero-ctas">
+        <a routerLink="/log" class="btn btn-primary">Registrar mi primera comida</a>
+        <a routerLink="/goals" class="btn btn-ghost">Crear mis metas</a>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="container" [@staggerCards]>
+      <div class="grid-3">
+        <article class="card">
+          <div class="card-icon">
+            <lucide-icon [img]="AppleIcon" class="icon-20" aria-hidden="true"></lucide-icon>
+          </div>
+          <h3 class="card-title">Registro de alimentación</h3>
+          <p class="card-text">Desayuno, almuerzo, cena y snacks. Clasifica por tipo y añade notas.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon">
+            <lucide-icon [img]="GoalIcon" class="icon-20" aria-hidden="true"></lucide-icon>
+          </div>
+          <h3 class="card-title">Metas personales</h3>
+          <p class="card-text">Define objetivos como “+ vegetales” o “– ultraprocesados” y sigue tu progreso.</p>
+        </article>
+
+        <article class="card">
+          <div class="card-icon">
+            <lucide-icon [img]="DropletsIcon" class="icon-20" aria-hidden="true"></lucide-icon>
+          </div>
+          <h3 class="card-title">Prácticas saludables</h3>
+          <p class="card-text">Adopta hábitos como beber agua y reducir frituras. Marca tu constancia diaria.</p>
+        </article>
+      </div>
+    </div>
+
+    <!-- Progreso -->
+    <div class="container">
+      <div class="card card-progress">
+        <div class="progress-copy">
+          <h3 class="card-title">Tu progreso, en un vistazo</h3>
+          <p class="card-text">
+            Visualiza el consumo por categorías (frutas, vegetales, proteínas, etc.) y compáralo
+            con tus metas del día. Exporta un informe PDF cuando lo necesites.
+          </p>
+          <div class="cta-row">
+            <a routerLink="/reports" class="btn btn-primary">
+              <lucide-icon [img]="BarChart3Icon" class="icon-18" aria-hidden="true"></lucide-icon>
+              <span>Generar reporte</span>
+            </a>
+            <a routerLink="/log" class="btn btn-ghost">Seguir registrando</a>
+          </div>
+        </div>
+
+        <div class="progress-tiles" aria-hidden="true">
+          <div class="tile tile-green"></div>
+          <div class="tile tile-cyan"></div>
+          <div class="tile tile-amber"></div>
+          <div class="tile tile-violet"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <span class="brand-dot"></span>
+        <strong>NutriTrack</strong>
+        <span class="muted">© {{ year }}</span>
+      </div>
+
+      <nav class="footer-nav" aria-label="Enlaces secundarios">
+        <a routerLink="/about"  class="linklike">Acerca</a>
+        <a routerLink="/privacy" class="linklike">Privacidad</a>
+        <a routerLink="/terms"   class="linklike">Términos</a>
+        <a routerLink="/contact" class="linklike">Contacto</a>
+      </nav>
+    </div>
+  </footer>
+
+</section>

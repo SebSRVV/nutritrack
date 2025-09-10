@@ -1,0 +1,133 @@
+/* ===========================
+   1) Reset moderno y base
+   =========================== */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+html, body { height: 100%; }
+
+body {
+  line-height: 1.5;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans",
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0b1222;
+  color: #e6edf6;
+}
+
+/* Evita que imágenes/svg afecten el flujo de línea */
+img, svg, video, canvas { display: block; max-width: 100%; }
+
+/* Inputs heredan tipografía pero SIN tocarles apariencia global (lo maneja cada componente) */
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* Código/mono */
+code, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+  "Liberation Mono", "Courier New", monospace;
+}
+
+/* ===========================
+   2) Tema (variables)
+   =========================== */
+:root{
+  --nt-bg: #0b1222;
+  --nt-bg-soft: #0f172a;
+  --nt-text: #e6edf6;
+  --nt-text-muted: #b6c2d3;
+  --nt-primary-600: #15c26b;
+  --nt-primary-700: #0e9f5b;
+  --nt-accent-emerald: #34d399;
+  --nt-accent-emerald-dark: #059669;
+  --nt-border: rgba(255,255,255,.08);
+  --nt-surface: rgba(255,255,255,.06);
+
+  /* Tamaño base para iconos Lucide (los componentes pueden sobreescribirlo) */
+  --icon-size: 18px;
+}
+
+/* ===========================
+   3) Elementos comunes
+   =========================== */
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.container { width: min(1120px, 92vw); margin-inline: auto; } /* utilitaria: OK usar global */
+
+/* Botón primario global “de cortesía” */
+.btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  border: 0; border-radius: 14px;
+  text-decoration: none; padding: .85rem 1.1rem;
+  font-weight: 800; letter-spacing: .01em;
+}
+.btn-primary{
+  background: linear-gradient(180deg, var(--nt-primary-600), var(--nt-primary-700));
+  color: #07131b; box-shadow: 0 10px 30px rgba(16,185,129,.35);
+}
+.btn-primary:hover { filter: brightness(1.05); }
+
+.text-muted { color: var(--nt-text-muted); }
+.surface    { background: var(--nt-surface); border: 1px solid var(--nt-border); border-radius: 16px; }
+.border     { border: 1px solid var(--nt-border); border-radius: 12px; }
+
+/* ===========================
+   4) Accesibilidad
+   =========================== */
+:focus-visible{
+  outline: 3px solid color-mix(in oklab, var(--nt-primary-600) 60%, transparent);
+  outline-offset: 3px;
+}
+
+/* ===========================
+   5) Scrollbar discreto
+   =========================== */
+* { scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--nt-primary-600) 55%, transparent) rgba(255,255,255,.08); }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb{
+  background: color-mix(in oklab, var(--nt-primary-600) 55%, transparent);
+  border: 3px solid transparent; background-clip: content-box; border-radius: 999px;
+}
+*::-webkit-scrollbar-track { background: rgba(255,255,255,.04); }
+
+/* ===========================
+   6) Lucide: que no rompa alineados
+   =========================== */
+/* Importante para que los iconos en inputs “absolutos” no empujen el texto */
+lucide-icon{
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: inline-block;   /* se comporta bien en línea */
+  vertical-align: middle;  /* alinea con texto cuando no es absoluto */
+  line-height: 0;          /* evita cajas altas que ‘empujan’ */
+}
+/* Asegura que el <svg> dentro no aporte caja extra */
+lucide-icon svg{ display: block; width: 100%; height: 100%; }
+
+/* ===========================
+   7) Date: detalles cross-browser
+   =========================== */
+/* Mejora el contraste del icono nativo en temas oscuros */
+input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) opacity(.8);
+}
+/* Evita que Safari aplique un padding raro al valor */
+input[type="date"]::-webkit-date-and-time-value{
+  text-align: left;
+}
+
+/* ===========================
+   8) Motion-safe
+   =========================== */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

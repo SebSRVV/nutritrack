@@ -1,0 +1,31 @@
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Build ---
+dist/
+out-tsc/
+coverage/
+
+# --- Environment ---
+src/environments/*
+!src/environments/environment.example.ts
+
+# --- IDEs / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Angular Cache ---
+.angular/
+
+# --- Supabase local (si usas supabase CLI) ---
+supabase/.temp/
+supabase/.branches/
+supabase/.db/
+
+# --- Logs ---
+*.log

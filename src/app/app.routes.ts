@@ -1,0 +1,12 @@
+import { Routes } from '@angular/router';
+
+export const routes: Routes = [
+  { path: '', loadComponent: () => import('./pages/home/home.page') },   // Home
+  // deja preparadas rutas para tus botones:
+  { path: 'reports', loadComponent: () => import('./pages/reports/reports.page') },
+  { path: 'log',      loadComponent: () => import('./pages/log/log.page') },
+  { path: 'goals',    loadComponent: () => import('./pages/goals/goals.page') },
+  { path: 'register', loadComponent: () => import('./pages/register/register.page') },
+  { path: 'login',    loadComponent: () => import('./pages/login/login.page') },
+  { path: '**', redirectTo: '' },
+];

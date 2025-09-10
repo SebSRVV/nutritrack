@@ -1,0 +1,238 @@
+<section class="reg-root" [@page]>
+
+  <header class="reg-header">
+    <a class="brand" routerLink="/">
+      <span class="dot"></span>
+      <strong>NutriTrack</strong>
+    </a>
+
+    <a routerLink="/" class="back-link">
+      <lucide-icon [img]="ArrowLeftIcon" aria-hidden="true"></lucide-icon>
+      <span>Volver al inicio</span>
+    </a>
+  </header>
+
+  <div class="container grid">
+    <!-- Columna izquierda: formulario -->
+    <article class="card">
+      <h1 class="title">Crear cuenta</h1>
+      <p class="sub">Regístrate y empieza a seguir tus hábitos saludables.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+        <!-- Usuario -->
+        <div class="field">
+          <label for="f-username">Usuario</label>
+          <div class="input">
+            <span class="icon-left"><lucide-icon [img]="UserIcon" aria-hidden="true"></lucide-icon></span>
+            <input id="f-username" type="text" formControlName="username" placeholder="TuNickName" autocomplete="username" />
+          </div>
+          <small class="err" *ngIf="form.controls.username.touched && form.controls.username.invalid">
+            3–24 caracteres, sin espacios.
+          </small>
+        </div>
+
+        <!-- Correo -->
+        <div class="field">
+          <label for="f-email">Correo</label>
+          <div class="input">
+            <span class="icon-left"><lucide-icon [img]="MailIcon" aria-hidden="true"></lucide-icon></span>
+            <input id="f-email" type="email" formControlName="email" placeholder="mail@gmail.com" autocomplete="email" />
+          </div>
+          <small class="err" *ngIf="form.controls.email.touched && form.controls.email.invalid">
+            Correo no válido.
+          </small>
+        </div>
+
+        <!-- Password -->
+        <div class="field">
+          <label for="f-pass">Contraseña</label>
+          <div class="input">
+            <span class="icon-left"><lucide-icon [img]="LockIcon" aria-hidden="true"></lucide-icon></span>
+            <input id="f-pass" type="password" formControlName="password" placeholder="••••••••" autocomplete="new-password" />
+          </div>
+          <small class="err" *ngIf="form.controls.password.touched && form.controls.password.invalid">
+            Mínimo 6 caracteres.
+          </small>
+        </div>
+
+        <!-- Fecha de nacimiento -->
+        <div class="field two">
+          <div>
+            <label for="f-dob">Fecha de nacimiento</label>
+            <div class="inputcalendar">
+              <span class="icon-left"><lucide-icon [img]="CalendarIcon" aria-hidden="true"></lucide-icon></span>
+              <input id="f-dob" type="date" formControlName="dob" />
+            </div>
+          </div>
+          <div></div>
+        </div>
+
+        <!-- Talla y Peso (sincronizados) -->
+        <div class="field two sliders">
+          <!-- Talla -->
+          <div>
+            <label class="inline" for="f-height">
+              <lucide-icon [img]="RulerIcon" class="inline-ic" aria-hidden="true"></lucide-icon>
+              <span>Talla (cm)</span>
+            </label>
+
+            <div class="meter" aria-hidden="true">
+              <div class="bar" [style.width.%]="heightPct()"></div>
+              <div class="label">{{ heightVal() }} cm</div>
+            </div>
+
+            <div class="range-wrap">
+              <input
+                id="f-height"
+                class="range"
+                type="range" min="80" max="230"
+                [value]="heightVal()"
+                (input)="setHeight(+$any($event.target).value)"
+              />
+              <span class="bubble" [style.left.%]="heightPct()">{{ heightVal() }} cm</span>
+              <input
+                aria-label="Talla en centímetros"
+                class="number" type="number" min="80" max="230"
+                [value]="heightVal()"
+                (input)="setHeight(+$any($event.target).value)"
+              />
+            </div>
+          </div>
+
+          <!-- Peso -->
+          <div>
+            <label class="inline" for="f-weight">
+              <lucide-icon [img]="ScaleIcon" class="inline-ic" aria-hidden="true"></lucide-icon>
+              <span>Peso (kg)</span>
+            </label>
+
+            <div class="meter cyan" aria-hidden="true">
+              <div class="bar" [style.width.%]="weightPct()"></div>
+              <div class="label">{{ weightVal() }} kg</div>
+            </div>
+
+            <div class="range-wrap">
+              <input
+                id="f-weight"
+                class="range cyan"
+                type="range" min="25" max="250" step="0.5"
+                [value]="weightVal()"
+                (input)="setWeight(+$any($event.target).value)"
+              />
+              <span class="bubble cyan" [style.left.%]="weightPct()">{{ weightVal() }} kg</span>
+              <input
+                aria-label="Peso en kilogramos"
+                class="number" type="number" min="25" max="250" step="0.5"
+                [value]="weightVal()"
+                (input)="setWeight(+$any($event.target).value)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <button class="btn btn-primary full" [disabled]="submitting()">
+          {{ submitting() ? 'Creando cuenta…' : 'Registrarme' }}
+        </button>
+
+        <!-- Mensajes -->
+        <p class="err server" *ngIf="serverError()">{{ serverError() }}</p>
+        <p class="success" *ngIf="successMessage()">
+          {{ successMessage() }}
+          <a routerLink="/login">Ir al login ahora</a>
+        </p>
+      </form>
+    </article>
+
+    <!-- Columna derecha -->
+    <aside class="card visuals">
+      <h2 class="aside-title">Tu salud, visualizada</h2>
+      <p class="aside-sub">Ajusta tus datos y observa cómo cambian las barras en tiempo real.</p>
+
+      <div class="viz">
+        <div class="tile">
+          <span>Talla</span>
+          <div class="spark">
+            <div class="spark-bar" [style.height.%]="heightPct()"></div>
+          </div>
+        </div>
+        <div class="tile">
+          <span>Peso</span>
+          <div class="spark">
+            <div class="spark-bar cyan" [style.height.%]="weightPct()"></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="aside-foot">Podrás editar estos datos luego en tu perfil.</p>
+
+      <!-- Radios dentro del mismo formGroup -->
+      <div class="summary surface" [formGroup]="form">
+        <div class="sex-group">
+          <label>Sexo</label>
+          <div class="segmented">
+            <label class="opt female">
+              <input type="radio" name="sex" value="female" formControlName="sex"/>
+              <span>Mujer</span>
+            </label>
+            <label class="opt male">
+              <input type="radio" name="sex" value="male" formControlName="sex"/>
+              <span>Hombre</span>
+            </label>
+            <div class="thumb" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <div class="bmi" *ngIf="bmi() as v">
+          <div class="bmi-left">
+            <div class="bmi-ic"
+                 [class.green]="bmiStatus().color==='green'"
+                 [class.cyan]="bmiStatus().color==='cyan'"
+                 [class.amber]="bmiStatus().color==='amber'"
+                 [class.violet]="bmiStatus().color==='violet'">
+              <lucide-icon [img]="HeartPulseIcon" aria-hidden="true"></lucide-icon>
+            </div>
+            <div>
+              <div class="bmi-title">IMC</div>
+              <div class="bmi-val">{{ v }}</div>
+            </div>
+          </div>
+          <div class="bmi-right">
+            <span class="pill"
+                  [class.green]="bmiStatus().color==='green'"
+                  [class.cyan]="bmiStatus().color==='cyan'"
+                  [class.amber]="bmiStatus().color==='amber'"
+                  [class.violet]="bmiStatus().color==='violet'">
+              {{ bmiStatus().label }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats: Edad y próximo cumple -->
+      <div class="surface facts" *ngIf="age() !== null">
+        <div class="fact">
+          <div class="fact-ic">
+            <lucide-icon [img]="InfoIcon" aria-hidden="true"></lucide-icon>
+          </div>
+          <div>
+            <div class="fact-title">Edad</div>
+            <div class="fact-val">{{ age() }} años</div>
+          </div>
+        </div>
+
+        <div class="fact">
+          <div class="fact-ic">
+            <lucide-icon [img]="CalendarIcon" aria-hidden="true"></lucide-icon>
+          </div>
+          <div>
+            <div class="fact-title">Cumple en</div>
+            <div class="fact-val">{{ daysToBday() }} días</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+</section>
