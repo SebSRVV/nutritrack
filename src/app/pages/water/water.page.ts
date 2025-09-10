@@ -9,8 +9,9 @@ import {
 } from 'lucide-angular';
 import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
-type DayItem = { date: string; label: string; total: number };
-type Preset  = { id?: string; name: string; amount_ml: number; icon?: 'cup'|'bottle'; sort_order?: number };
+type DayItem  = { date: string; label: string; total: number };
+type Preset   = { id?: string; name: string; amount_ml: number; icon?: 'cup'|'bottle'; sort_order?: number };
+type Intake   = { id: string; amount_ml: number; logged_at: string };
 
 @Component({
   standalone: true,
@@ -47,24 +48,26 @@ export default class WaterPage {
 
   private supabase = inject(SupabaseService);
 
-  // Estado base
+  // ===== Estado base =====
   loading = signal(true);
   err = signal<string | null>(null);
   uid = signal<string | null>(null);
 
-  // Meta diaria (fallback 2000)
   goal = signal<number>(2000);
 
   // Semana
   week = signal<DayItem[]>([]);
-  sel = signal<number>(0);
+  sel  = signal<number>(0);
   todayIndex = computed(() => this.week().findIndex(d => d.date === this.toYMD(new Date())));
   isToday = computed(() => this.sel() === this.todayIndex());
 
-  // Registro para "deshacer"
+  // Entradas por día (YYYY-MM-DD -> Intake[])
+  entriesByDate = signal<Record<string, Intake[]>>({});
+
+  // Para “deshacer último”
   lastInsertId = signal<string | null>(null);
 
-  // Presets
+  // Presets / modal
   presets = signal<Preset[]>([]);
   showPresetModal = signal(false);
   editingPreset = signal<Preset | null>(null);
@@ -72,6 +75,13 @@ export default class WaterPage {
   // ====== UI Computados ======
   selectedDay = computed(() => this.week()[this.sel()]);
   selectedTotal = computed(() => this.selectedDay()?.total ?? 0);
+  selectedEntries = computed(() => {
+    const d = this.selectedDay();
+    if (!d) return [];
+    const list = this.entriesByDate()[d.date] ?? [];
+    // más recientes primero
+    return [...list].sort((a,b) => +new Date(b.logged_at) - +new Date(a.logged_at));
+  });
 
   dayPct = computed(() => {
     const g = this.goal() || 1;
@@ -86,7 +96,6 @@ export default class WaterPage {
   });
 
   progressText = computed(() => `${this.selectedTotal()} ml de ${this.goal()} ml`);
-
   selectedLevel = computed<'low'|'mid'|'ok'>(() => this.levelFor(this.selectedTotal(), this.goal()));
 
   // ====== Ciclo de vida ======
@@ -127,6 +136,7 @@ export default class WaterPage {
   }
   private dayLabel(d: Date): string { return ['D','L','M','M','J','V','S'][d.getDay()]; }
   private toYMD(d: Date): string { return d.toISOString().slice(0,10); }
+  private timeOf(ts: string){ return new Date(ts).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}); }
 
   private formatDateEs(d: Date): string {
     const dia = d.toLocaleDateString('es-PE', { weekday: 'long' });
@@ -155,16 +165,23 @@ export default class WaterPage {
 
     const { data: rows } = await this.supabase.client
       .from('water_intake')
-      .select('amount_ml, logged_at')
+      .select('id, amount_ml, logged_at')
       .eq('user_id', uid)
       .gte('logged_at', start.toISOString())
       .lt('logged_at', end.toISOString());
 
+    // construir mapa YYYY-MM-DD -> entradas
+    const map: Record<string, Intake[]> = {};
     for (const r of rows ?? []) {
       const y = this.toYMD(new Date(r.logged_at));
-      const i = days.findIndex(d => d.date === y);
-      if (i >= 0) days[i].total += Number(r.amount_ml) || 0;
+      (map[y] ||= []).push({ id: String((r as any).id), amount_ml: Number(r.amount_ml)||0, logged_at: r.logged_at });
     }
+    // totales por día desde el mapa
+    for (const d of days){
+      d.total = (map[d.date] ?? []).reduce((acc, it) => acc + (it.amount_ml||0), 0);
+    }
+
+    this.entriesByDate.set(map);
     this.week.set(days);
     this.sel.set(this.todayIndex() >= 0 ? this.todayIndex() : 0);
   }
@@ -174,10 +191,10 @@ export default class WaterPage {
 
   // ====== Acciones ======
   async addPreset(ml: number){
-    if (!this.isToday()) return;
+    if (!this.isToday()) return; // solo se permite registrar en el día actual
     const uid = this.uid(); if(!uid) return;
 
-    // Optimista
+    // Optimista: suma al total del día
     const w = [...this.week()];
     const i = this.sel();
     w[i] = { ...w[i], total: (w[i]?.total ?? 0) + ml };
@@ -187,11 +204,24 @@ export default class WaterPage {
       const { data, error } = await this.supabase.client
         .from('water_intake')
         .insert({ user_id: uid, amount_ml: ml })
-        .select('id')
+        .select('id, amount_ml, logged_at')
         .single();
       if (error) throw error;
+
+      // Guardar id para deshacer
       this.lastInsertId.set(data?.id ?? null);
+
+      // Añadir a la lista de ingresos del día
+      const day = this.selectedDay()?.date;
+      if (day){
+        const map = {...this.entriesByDate()};
+        const list = map[day] ? [...map[day]] : [];
+        list.push({ id: data.id, amount_ml: Number(data.amount_ml)||0, logged_at: data.logged_at });
+        map[day] = list;
+        this.entriesByDate.set(map);
+      }
     }catch(e){
+      // revertir total
       const back = [...this.week()];
       const i2 = this.sel();
       back[i2] = { ...back[i2], total: Math.max(0,(back[i2]?.total ?? 0) - ml) };
@@ -209,18 +239,60 @@ export default class WaterPage {
         .from('water_intake')
         .delete()
         .eq('id', id)
-        .select('amount_ml')
+        .select('id, amount_ml, logged_at')
         .maybeSingle();
       if (error) throw error;
+
       const ml = Number(data?.amount_ml) || 0;
+
+      // actualizar total
       const w = [...this.week()];
       const i = this.sel();
       w[i] = { ...w[i], total: Math.max(0,(w[i]?.total ?? 0) - ml) };
       this.week.set(w);
+
+      // quitar de la lista
+      const y = data?.logged_at ? this.toYMD(new Date(data.logged_at)) : this.selectedDay()?.date;
+      if (y){
+        const map = {...this.entriesByDate()};
+        map[y] = (map[y] ?? []).filter(e => e.id !== id);
+        this.entriesByDate.set(map);
+      }
+
       this.lastInsertId.set(null);
     }catch(e){
       this.err.set((e as any)?.message ?? 'No se pudo deshacer.');
       setTimeout(()=>this.err.set(null), 2000);
+    }
+  }
+
+  async deleteEntry(it: Intake){
+    try{
+      const { error } = await this.supabase.client
+        .from('water_intake')
+        .delete()
+        .eq('id', it.id);
+      if (error) throw error;
+
+      const y = this.toYMD(new Date(it.logged_at));
+      const map = {...this.entriesByDate()};
+      map[y] = (map[y] ?? []).filter(e => e.id !== it.id);
+      this.entriesByDate.set(map);
+
+      // bajar total del día correspondiente
+      const w = [...this.week()];
+      const i = w.findIndex(d => d.date === y);
+      if (i >= 0){
+        const newTotal = Math.max(0, (w[i].total || 0) - (it.amount_ml || 0));
+        w[i] = { ...w[i], total: newTotal };
+        this.week.set(w);
+      }
+
+      // si era el último insert “deshacer”, resetea
+      if (this.lastInsertId() === it.id) this.lastInsertId.set(null);
+    }catch(e:any){
+      this.err.set(e?.message ?? 'No se pudo eliminar el registro.');
+      setTimeout(()=>this.err.set(null), 2200);
     }
   }
 
@@ -264,26 +336,20 @@ export default class WaterPage {
     }
   }
 
-  // --- helpers para el modal de presets ---
+  // --- helpers modal ---
   private updateEditingPreset(p: Partial<Preset>){
     const cur = this.editingPreset(); if (!cur) return;
     this.editingPreset.set({ ...cur, ...p });
   }
-
-  onPresetNameInput(ev: Event){
-    this.updateEditingPreset({ name: (ev.target as HTMLInputElement).value ?? '' });
-  }
-
+  onPresetNameInput(ev: Event){ this.updateEditingPreset({ name: (ev.target as HTMLInputElement).value ?? '' }); }
   onPresetAmountInput(ev: Event){
     const v = Number((ev.target as HTMLInputElement).value);
     this.updateEditingPreset({ amount_ml: isNaN(v) ? 0 : v });
   }
-
   onPresetIconChange(ev: Event){
     const v = (ev.target as HTMLSelectElement).value as 'cup' | 'bottle';
     this.updateEditingPreset({ icon: v || 'bottle' });
   }
-
 
   openAdd(){ this.editingPreset.set({ name:'', amount_ml:300, icon:'cup' }); this.showPresetModal.set(true); }
   openEdit(p: Preset){ this.editingPreset.set({ ...p }); this.showPresetModal.set(true); }
@@ -332,4 +398,7 @@ export default class WaterPage {
     return Math.max(0, Math.min(100, +pct.toFixed(1)));
   }
   levelForDay(d: DayItem){ return this.levelFor(d.total, this.goal()); }
+
+  trackById = (_: number, e: Intake) => e.id;
+  timeLabel = (it: Intake) => this.timeOf(it.logged_at);
 }

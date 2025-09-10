@@ -1,9 +1,9 @@
 <section class="water-root" [@page] *ngIf="!loading(); else skel">
   <header class="water-header container">
-    <div class="brand">
-      <span class="dot"></span>
-      <strong>Agua</strong>
-    </div>
+    <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
+      <strong class="brand-name">NutriTrack</strong>
+    </a>
+
     <nav class="actions">
       <a routerLink="/dashboard" class="btn">Dashboard</a>
       <a routerLink="/profile" class="btn ghost">
@@ -11,6 +11,7 @@
       </a>
     </nav>
   </header>
+
 
   <div class="container grid">
     <!-- Progreso + presets -->
@@ -23,7 +24,7 @@
         <div class="goal">Meta: <b>{{ goal() }}</b> ml</div>
       </div>
 
-      <!-- Barra de progreso con el valor centrado -->
+      <!-- Barra de progreso -->
       <div class="meter" aria-label="Progreso del día" role="progressbar"
            [attr.aria-valuemin]="0" [attr.aria-valuemax]="goal()" [attr.aria-valuenow]="selectedTotal()">
         <div class="bar"
@@ -32,7 +33,6 @@
              [class.mid]="selectedLevel()==='mid'"
              [class.ok]="selectedLevel()==='ok'"></div>
 
-        <!-- Texto siempre visible -->
         <div class="value">{{ progressText() }}</div>
       </div>
 
@@ -67,12 +67,11 @@
           <span class="p-ml">último</span>
         </button>
       </div>
-
       <p class="hint">El registro solo afecta el día actual. Puedes crear, editar y eliminar presets.</p>
       <p class="err" *ngIf="err()">{{ err() }}</p>
     </section>
 
-    <!-- Semana -->
+    <!-- Semana + ingresos del día -->
     <section class="card week">
       <div class="week-head">
         <div class="title">
@@ -118,6 +117,29 @@
           <div class="ml">{{ d.total }} ml</div>
         </button>
       </div>
+
+      <!-- ===== Ingresos del día seleccionado ===== -->
+      <div class="intakes">
+        <div class="intakes-head">
+          <strong>Ingresos del día</strong>
+          <span class="muted">{{ selectedDateLabel() | titlecase }}</span>
+        </div>
+
+        <ul class="intake-list">
+          <li class="intake-item" *ngFor="let it of selectedEntries(); trackBy: trackById">
+            <span class="intake-time">{{ timeLabel(it) }}</span>
+            <span class="intake-ml">+{{ it.amount_ml }} ml</span>
+            <button class="icon-btn danger sm" (click)="deleteEntry(it)" title="Eliminar">
+              <lucide-icon [img]="Trash2Icon"></lucide-icon>
+            </button>
+          </li>
+
+          <li *ngIf="selectedEntries().length === 0" class="intake-empty">
+            Sin registros para este día.
+          </li>
+        </ul>
+      </div>
+      <!-- ======================================= -->
     </section>
   </div>
 
