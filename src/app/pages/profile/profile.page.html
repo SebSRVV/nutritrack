@@ -6,11 +6,15 @@
     </a>
 
     <div class="actions">
+      <a class="btn btn-outline" routerLink="/dashboard">
+        <lucide-icon [img]="ActivityIcon"></lucide-icon>
+        Ir al panel
+      </a>
       <button class="btn danger outline" (click)="openDeleteModal()">
         <lucide-icon [img]="Trash2Icon"></lucide-icon>
         Eliminar cuenta
       </button>
-      <button class="btn btn-logout" (click)="logout()">
+      <button class="btn btn-outline" (click)="logout()">
         <lucide-icon [img]="LogOutIcon"></lucide-icon>
         Cerrar sesión
       </button>
@@ -24,6 +28,7 @@
         <h2 class="title">Perfil profesional</h2>
         <p class="sub">Información de cuenta y métricas personales.</p>
 
+        <!-- Identidad / sistema -->
         <div class="surface id-block">
           <div class="row">
             <div class="row-item">
@@ -57,22 +62,23 @@
           </div>
         </div>
 
-        <div class="surface info-block">
-          <div class="info-item">
-            <div class="label"><lucide-icon [img]="CalendarIcon"></lucide-icon> Fecha de nacimiento</div>
-            <div class="value mono">{{ dob() || '—' }}</div>
+        <!-- DATOS PERSONALES (2×2) -->
+        <div class="surface personal-grid">
+          <div class="personal-item">
+            <div class="k"><lucide-icon [img]="CalendarIcon"></lucide-icon> Fecha de nacimiento</div>
+            <div class="v mono">{{ dob() || '—' }}</div>
           </div>
-          <div class="info-item">
-            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Edad</div>
-            <div class="value">{{ age() ?? '—' }} años</div>
+          <div class="personal-item">
+            <div class="k"><lucide-icon [img]="InfoIcon"></lucide-icon> Edad</div>
+            <div class="v">{{ age() ?? '—' }} años</div>
           </div>
-          <div class="info-item">
-            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Días para tu cumple</div>
-            <div class="value">{{ daysToBday() ?? '—' }}</div>
+          <div class="personal-item">
+            <div class="k"><lucide-icon [img]="CalendarIcon"></lucide-icon> Días para tu cumple</div>
+            <div class="v">{{ daysToBday() ?? '—' }}</div>
           </div>
-          <div class="info-item">
-            <div class="label"><lucide-icon [img]="InfoIcon"></lucide-icon> Sexo</div>
-            <div class="value">{{ sex() === 'male' ? 'Hombre' : 'Mujer' }}</div>
+          <div class="personal-item">
+            <div class="k"><lucide-icon [img]="InfoIcon"></lucide-icon> Sexo</div>
+            <div class="v">{{ sex() === 'male' ? 'Hombre' : 'Mujer' }}</div>
           </div>
         </div>
 
@@ -83,20 +89,17 @@
       </div>
     </div>
 
-    <!-- DERECHA: Editores + BMI + resumen -->
+    <!-- DERECHA: Editores + Preferencias + BMI -->
     <aside class="col-right">
       <form (ngSubmit)="save()" [formGroup]="form" class="card editors" novalidate>
         <!-- Altura -->
         <div class="sliders">
-          <div class="field-label"><lucide-icon [img]="RulerIcon"></lucide-icon> Altura (cm)
+          <div class="field-label">
+            <lucide-icon [img]="RulerIcon"></lucide-icon> Altura (cm)
             <span class="chip">{{ form.controls.height_cm.value }} cm</span>
           </div>
           <div class="range-wrap">
-            <div class="bubble" [style.left.%]="heightPct()">{{ form.controls.height_cm.value }} cm</div>
             <input class="range" type="range" min="80" max="230" formControlName="height_cm">
-            <input class="number" type="number" min="80" max="230"
-                   [value]="form.controls.height_cm.value"
-                   (input)="setHeight($any($event.target).valueAsNumber)">
           </div>
           <div class="meter">
             <div class="bar" [style.width.%]="heightPct()"></div>
@@ -106,19 +109,55 @@
 
         <!-- Peso -->
         <div class="sliders">
-          <div class="field-label"><lucide-icon [img]="ScaleIcon"></lucide-icon> Peso (kg)
+          <div class="field-label">
+            <lucide-icon [img]="ScaleIcon"></lucide-icon> Peso (kg)
             <span class="chip cyan">{{ form.controls.weight_kg.value }} kg</span>
           </div>
           <div class="range-wrap">
-            <div class="bubble cyan" [style.left.%]="weightPct()">{{ form.controls.weight_kg.value }} kg</div>
             <input class="range cyan" type="range" min="25" max="250" formControlName="weight_kg">
-            <input class="number" type="number" min="25" max="250"
-                   [value]="form.controls.weight_kg.value"
-                   (input)="setWeight($any($event.target).valueAsNumber)">
           </div>
           <div class="meter cyan">
             <div class="bar" [style.width.%]="weightPct()"></div>
             <div class="label">{{ weightPct() }}%</div>
+          </div>
+        </div>
+
+        <!-- PREFERENCIAS (ahora aquí, arriba del BMI) -->
+        <div>
+          <div class="segment-title">Nivel de actividad</div>
+          <div class="segment-hint">Usado para tus cálculos de gasto energético.</div>
+          <div class="segmented-3">
+            <label>
+              <input type="radio" name="activity" value="sedentary" [checked]="activityLevel()==='sedentary'" (change)="setActivity('sedentary')">
+              <span>Sedentario</span>
+            </label>
+            <label>
+              <input type="radio" name="activity" value="moderate" [checked]="activityLevel()==='moderate'" (change)="setActivity('moderate')">
+              <span>Activo moderado</span>
+            </label>
+            <label>
+              <input type="radio" name="activity" value="very_active" [checked]="activityLevel()==='very_active'" (change)="setActivity('very_active')">
+              <span>Muy activo</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div class="segment-title">Tipo de dieta</div>
+          <div class="segment-hint">Preferencia principal para objetivos.</div>
+          <div class="segmented-3">
+            <label>
+              <input type="radio" name="diet" value="low_carb" [checked]="dietType()==='low_carb'" (change)="setDiet('low_carb')">
+              <span>Sin carbohidratos</span>
+            </label>
+            <label>
+              <input type="radio" name="diet" value="caloric_deficit" [checked]="dietType()==='caloric_deficit'" (change)="setDiet('caloric_deficit')">
+              <span>Déficit calórico</span>
+            </label>
+            <label>
+              <input type="radio" name="diet" value="surplus" [checked]="dietType()==='surplus'" (change)="setDiet('surplus')">
+              <span>Aumento de Peso</span>
+            </label>
           </div>
         </div>
 
@@ -140,26 +179,14 @@
           </div>
         </div>
 
-        <button class="btn btn-primary full" type="submit" [disabled]="saving()">
-          <lucide-icon [img]="SaveIcon"></lucide-icon>
-          {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
-        </button>
-      </form>
-
-      <div class="card mini-viz">
-        <div class="viz">
-          <div class="tile">
-            <span>Altura</span>
-            <div class="spark"><div class="spark-bar" [style.height.%]="Math.max(20, heightPct())"></div></div>
-            <strong>{{ form.controls.height_cm.value }} cm</strong>
-          </div>
-          <div class="tile">
-            <span>Peso</span>
-            <div class="spark"><div class="spark-bar cyan" [style.height.%]="Math.max(20, weightPct())"></div></div>
-            <strong>{{ form.controls.weight_kg.value }} kg</strong>
-          </div>
+        <!-- Acciones centradas -->
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="saving()">
+            <lucide-icon [img]="SaveIcon"></lucide-icon>
+            {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
         </div>
-      </div>
+      </form>
     </aside>
   </section>
 

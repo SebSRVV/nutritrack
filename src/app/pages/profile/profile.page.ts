@@ -11,6 +11,9 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 type Sex = 'female' | 'male';
+type ActivityLevel = 'sedentary' | 'moderate' | 'very_active';
+type DietType = 'low_carb' | 'caloric_deficit' | 'surplus';
+
 type UserMeta = {
   username?: string;
   dob?: string;
@@ -18,6 +21,8 @@ type UserMeta = {
   height_cm?: number;
   weight_kg?: number;
   bmi?: number;
+  activity_level?: ActivityLevel;
+  diet_type?: DietType;
 };
 
 function calcAge(dobStr?: string): number | null {
@@ -47,7 +52,7 @@ function daysUntilBirthday(dobStr?: string): number | null {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export default class ProfilePage {
-  Math = Math; // para el template
+  Math = Math;
 
   // Icons
   readonly UserIcon = UserIcon;
@@ -81,6 +86,9 @@ export default class ProfilePage {
   username = signal<string>('');
   sex = signal<Sex>('female');
   dob  = signal<string>('');
+
+  activityLevel = signal<ActivityLevel>('sedentary');
+  dietType = signal<DietType>('caloric_deficit');
 
   form = this.fb.group({
     height_cm: this.fb.control(170, { validators: [Validators.required, Validators.min(80), Validators.max(230)] }),
@@ -139,7 +147,6 @@ export default class ProfilePage {
       const { data: { user }, error } = await this.supabase.client.auth.getUser();
       if (error) throw error;
       if (!user) {
-        // Fallback (el guard ya lo evita, pero por si entran directo)
         await this.router.navigate(['/login'], { queryParams: { auth: 'required', redirect: '/profile' } });
         return;
       }
@@ -152,6 +159,8 @@ export default class ProfilePage {
       this.username.set(md.username ?? '');
       this.sex.set((md.sex ?? 'female') as Sex);
       this.dob.set(md.dob ?? '');
+      this.activityLevel.set((md.activity_level ?? 'sedentary') as ActivityLevel);
+      this.dietType.set((md.diet_type ?? 'caloric_deficit') as DietType);
 
       this.form.patchValue({
         height_cm: Number(md.height_cm ?? 170),
@@ -167,8 +176,8 @@ export default class ProfilePage {
     }
   }
 
-  setHeight(v: number) { this.hCtrl.setValue(v); }
-  setWeight(v: number) { this.wCtrl.setValue(v); }
+  setActivity(v: ActivityLevel){ this.activityLevel.set(v); }
+  setDiet(v: DietType){ this.dietType.set(v); }
 
   async save() {
     this.serverError.set(null);
@@ -185,6 +194,8 @@ export default class ProfilePage {
           height_cm: v.height_cm,
           weight_kg: v.weight_kg,
           bmi: this.bmi() ?? undefined,
+          activity_level: this.activityLevel(),
+          diet_type: this.dietType(),
         }
       });
       if (error) throw error;
