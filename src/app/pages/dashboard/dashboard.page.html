@@ -1,0 +1,98 @@
+<section class="dash-root" *ngIf="!loading(); else skel">
+  <header class="dash-header container">
+    <div class="brand">
+      <span class="dot"></span>
+      <strong>Dashboard</strong>
+    </div>
+
+    <nav class="quick-links">
+      <a routerLink="/profile" class="btn btn-ghost">
+        <lucide-icon [img]="SettingsIcon"></lucide-icon>
+        Configuraciones
+      </a>
+      <a routerLink="/goals" class="btn btn-chip">
+        <lucide-icon [img]="TargetIcon"></lucide-icon> Metas
+      </a>
+      <a routerLink="/alimentation" class="btn btn-chip">
+        <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Alimentación
+      </a>
+      <a routerLink="/water" class="btn btn-chip">
+        <lucide-icon [img]="DropletsIcon"></lucide-icon> Agua
+      </a>
+    </nav>
+  </header>
+
+  <div class="container grid">
+    <!-- Resumen -->
+    <section class="card overview glow">
+      <h2 class="title">Resumen y recomendaciones</h2>
+
+      <div class="tags">
+        <span class="tag">{{ sex()==='male' ? 'Hombre' : 'Mujer' }}</span>
+        <span class="tag">Actividad:
+          {{ activity()==='sedentary' ? 'Sedentario' : activity()==='moderate' ? 'Activo moderado' : 'Muy activo' }}
+        </span>
+        <span class="tag">Dieta:
+          {{ diet()==='low_carb' ? 'Baja en carbohidratos' : diet()==='surplus' ? 'Superávit' : 'Déficit' }}
+        </span>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi kpi--imc">
+          <div class="k"><lucide-icon [img]="HeartPulseIcon"></lucide-icon> IMC</div>
+          <div class="v xl">{{ bmi() ?? '—' }}</div>
+          <div class="hint">{{ bmiLabel() }}</div>
+        </div>
+
+        <div class="kpi kpi--kcal">
+          <div class="k"><lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Calorías recomendadas</div>
+          <div class="v">{{ recKcal() ?? '—' }}<span class="unit">kcal/día</span></div>
+          <div class="hint">Según sexo, edad, talla, peso y objetivo</div>
+        </div>
+
+        <div class="kpi kpi--water">
+          <div class="k"><lucide-icon [img]="DropletsIcon"></lucide-icon> Agua recomendada</div>
+          <div class="v">{{ recWater() ?? '—' }}<span class="unit">ml/día</span></div>
+          <div class="meter"><div class="bar" [style.width.%]="waterPct()"></div></div>
+          <div class="hint">Hoy: {{ waterMl() }} ml</div>
+        </div>
+
+        <div class="kpi kpi--goals">
+          <div class="k"><lucide-icon [img]="TargetIcon"></lucide-icon> Metas activas</div>
+          <div class="v">{{ goalsCount() }}</div>
+          <a routerLink="/goals" class="more">Ver metas <lucide-icon [img]="ChevronRightIcon"></lucide-icon></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tarjetas de acceso rápido -->
+    <section class="grid cards">
+      <a routerLink="/goals" class="card entry lift">
+        <div class="head"><lucide-icon [img]="TargetIcon"></lucide-icon> Módulo 2: Metas</div>
+        <ul class="mini">
+          <li *ngFor="let g of goalsSample()">{{ g.title }}</li>
+          <li *ngIf="goalsSample().length === 0" class="hint">Aún no tienes metas</li>
+        </ul>
+        <span class="cta">Ir a metas</span>
+      </a>
+
+      <a routerLink="/alimentation" class="card entry lift">
+        <div class="head"><lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Registro de alimentación</div>
+        <p class="hint">Desayuno, almuerzo, cena y snacks clasificados por tipo y calorías.</p>
+        <span class="cta">Ir a alimentación</span>
+      </a>
+
+      <a routerLink="/water" class="card entry lift">
+        <div class="head"><lucide-icon [img]="DropletsIcon"></lucide-icon> Agua</div>
+        <p class="hint">Registra vasos/botellas y cumple tu meta diaria.</p>
+        <span class="cta">Ir a agua</span>
+      </a>
+    </section>
+  </div>
+
+  <p class="err" *ngIf="err()">{{ err() }}</p>
+</section>
+
+<ng-template #skel>
+  <div class="container loading">Cargando dashboard…</div>
+</ng-template>
