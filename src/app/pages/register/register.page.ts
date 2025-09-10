@@ -8,7 +8,7 @@ import {
   ArrowLeftIcon, UserIcon, MailIcon, LockIcon, CalendarIcon,
   RulerIcon, ScaleIcon, HeartPulseIcon, InfoIcon
 } from 'lucide-angular';
-import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
+import { trigger, transition, style, animate, query, stagger, group } from '@angular/animations';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 function calcAge(dobStr?: string): number | null {
@@ -40,11 +40,15 @@ type Sex = 'female' | 'male';
   animations: [
     trigger('page', [
       transition(':enter', [
+        // estado inicial
         style({ opacity: 0, transform: 'translateY(16px)' }),
-        animate('420ms cubic-bezier(.16,1,.3,1)', style({ opacity: 1, transform: 'none' })),
-        query('.card', [
-          style({ opacity: 0, transform: 'translateY(12px) scale(.98)' }),
-          stagger(80, animate('380ms cubic-bezier(.16,1,.3,1)', style({ opacity: 1, transform: 'none' })))
+        query('.card', style({ opacity: 0, transform: 'translateY(12px) scale(.98)' }), { optional: true }),
+        // animar en paralelo para evitar parpadeos por re-layout
+        group([
+          animate('420ms cubic-bezier(.16,1,.3,1)', style({ opacity: 1, transform: 'none' })),
+          query('.card', [
+            stagger(80, animate('380ms cubic-bezier(.16,1,.3,1)', style({ opacity: 1, transform: 'none' })))
+          ], { optional: true })
         ])
       ])
     ])
@@ -122,15 +126,17 @@ export default class RegisterPage {
   setHeight(v: number) { this.hCtrl.setValue(v); }
   setWeight(v: number) { this.wCtrl.setValue(v); }
 
-  // Clamp cuando escriben a mano
+  // Clamp con microtarea para evitar "rebote" visual
   private clampEffect = effect(() => {
-    const h = this.heightVal();
-    if (h < 80) this.hCtrl.setValue(80, { emitEvent: false });
-    if (h > 230) this.hCtrl.setValue(230, { emitEvent: false });
+    queueMicrotask(() => {
+      const h = this.heightVal();
+      if (h < 80) this.hCtrl.setValue(80, { emitEvent: false });
+      else if (h > 230) this.hCtrl.setValue(230, { emitEvent: false });
 
-    const w = this.weightVal();
-    if (w < 25) this.wCtrl.setValue(25, { emitEvent: false });
-    if (w > 250) this.wCtrl.setValue(250, { emitEvent: false });
+      const w = this.weightVal();
+      if (w < 25) this.wCtrl.setValue(25, { emitEvent: false });
+      else if (w > 250) this.wCtrl.setValue(250, { emitEvent: false });
+    });
   });
 
   async submit() {

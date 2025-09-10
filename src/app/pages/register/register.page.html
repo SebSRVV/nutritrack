@@ -78,7 +78,7 @@
             </label>
 
             <div class="meter" aria-hidden="true">
-              <div class="bar" [style.width.%]="heightPct()"></div>
+              <div class="bar" [style.--p]="heightPct()/100"></div>
               <div class="label">{{ heightVal() }} cm</div>
             </div>
 
@@ -90,7 +90,7 @@
                 [value]="heightVal()"
                 (input)="setHeight(+$any($event.target).value)"
               />
-              <span class="bubble" [style.left.%]="heightPct()">{{ heightVal() }} cm</span>
+              <span class="bubble" [style.--p]="heightPct()">{{ heightVal() }} cm</span>
               <input
                 aria-label="Talla en centímetros"
                 class="number" type="number" min="80" max="230"
@@ -108,7 +108,7 @@
             </label>
 
             <div class="meter cyan" aria-hidden="true">
-              <div class="bar" [style.width.%]="weightPct()"></div>
+              <div class="bar" [style.--p]="weightPct()/100"></div>
               <div class="label">{{ weightVal() }} kg</div>
             </div>
 
@@ -120,7 +120,7 @@
                 [value]="weightVal()"
                 (input)="setWeight(+$any($event.target).value)"
               />
-              <span class="bubble cyan" [style.left.%]="weightPct()">{{ weightVal() }} kg</span>
+              <span class="bubble cyan" [style.--p]="weightPct()">{{ weightVal() }} kg</span>
               <input
                 aria-label="Peso en kilogramos"
                 class="number" type="number" min="25" max="250" step="0.5"
@@ -154,13 +154,13 @@
         <div class="tile">
           <span>Talla</span>
           <div class="spark">
-            <div class="spark-bar" [style.height.%]="heightPct()"></div>
+            <div class="spark-bar" [style.--p]="heightPct()/100"></div>
           </div>
         </div>
         <div class="tile">
           <span>Peso</span>
           <div class="spark">
-            <div class="spark-bar cyan" [style.height.%]="weightPct()"></div>
+            <div class="spark-bar cyan" [style.--p]="weightPct()/100"></div>
           </div>
         </div>
       </div>
