@@ -1,4 +1,5 @@
-<section class="reg-root" [@page]>
+<!-- Monta el contenedor animado solo cuando animReady === true (solo cliente) -->
+<section class="reg-root" *ngIf="animReady()" [@page]>
 
   <header class="reg-header">
     <a class="brand" routerLink="/">
@@ -13,46 +14,33 @@
   </header>
 
   <div class="container grid">
-    <!-- Columna izquierda: formulario login -->
     <article class="card">
       <h1 class="title">Iniciar sesión</h1>
       <p class="sub">Accede con tu correo y contraseña.</p>
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <!-- Correo -->
         <div class="field">
           <label for="f-email">Correo</label>
           <div class="input">
-            <span class="icon-left">
-              <lucide-icon [img]="MailIcon" aria-hidden="true"></lucide-icon>
-            </span>
+            <span class="icon-left"><lucide-icon [img]="MailIcon" aria-hidden="true"></lucide-icon></span>
             <input id="f-email" type="email" formControlName="email" placeholder="mail@gmail.com" autocomplete="email" />
           </div>
-          <small class="err" *ngIf="form.controls.email.touched && form.controls.email.invalid">
-            Correo no válido.
-          </small>
+          <small class="err" *ngIf="form.controls.email.touched && form.controls.email.invalid">Correo no válido.</small>
         </div>
 
-        <!-- Password -->
         <div class="field">
           <label for="f-pass">Contraseña</label>
           <div class="input">
-            <span class="icon-left">
-              <lucide-icon [img]="LockIcon" aria-hidden="true"></lucide-icon>
-            </span>
+            <span class="icon-left"><lucide-icon [img]="LockIcon" aria-hidden="true"></lucide-icon></span>
             <input id="f-pass" type="password" formControlName="password" placeholder="••••••••" autocomplete="current-password" />
           </div>
-          <small class="err" *ngIf="form.controls.password.touched && form.controls.password.invalid">
-            Mínimo 6 caracteres.
-          </small>
+          <small class="err" *ngIf="form.controls.password.touched && form.controls.password.invalid">Mínimo 6 caracteres.</small>
         </div>
 
-        <!-- Botón -->
         <button class="btn btn-primary full" [disabled]="submitting()">
           {{ submitting() ? 'Accediendo…' : 'Entrar' }}
         </button>
 
-        <!-- Mensajes -->
         <div class="messages">
           <p class="err server" *ngIf="serverError()">{{ serverError() }}</p>
           <p class="success" *ngIf="successMessage()">{{ successMessage() }}</p>
@@ -60,12 +48,10 @@
       </form>
 
       <p class="muted" style="margin-top:1rem; text-align:center;">
-        ¿No tienes cuenta?
-        <a routerLink="/register">Regístrate</a>
+        ¿No tienes cuenta? <a routerLink="/register">Regístrate</a>
       </p>
     </article>
 
-    <!-- Columna derecha opcional -->
     <aside class="card visuals">
       <h2 class="aside-title">Bienvenido de vuelta</h2>
       <p class="aside-sub">Accede a tu perfil y sigue tu progreso de salud.</p>

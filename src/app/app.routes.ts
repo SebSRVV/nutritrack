@@ -8,7 +8,11 @@ export const routes: Routes = [
   { path: 'log',      loadComponent: () => import('./pages/log/log.page') },
   { path: 'goals',    loadComponent: () => import('./pages/goals/goals.page') },
   { path: 'register', loadComponent: () => import('./pages/register/register.page') },
-  { path: 'login',    loadComponent: () => import('./pages/login/login.page') },
+  {
+    path: 'login',
+    loadComponent: () => import('./pages/login/login.page'),
+    data: { animation: 'login' }
+  },
   {
     path: 'profile',
     loadComponent: () => import('./pages/profile/profile.page').then(m => m.default),

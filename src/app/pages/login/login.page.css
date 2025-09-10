@@ -39,6 +39,10 @@
   border-radius: 16px;
   padding: 1.2rem;
   backdrop-filter: blur(6px);
+  /* anti-flicker */
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  contain: paint;
 }
 
 .title { margin: .2rem 0 .3rem; font-weight: 900; letter-spacing: -.02em; font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem); }
@@ -63,34 +67,17 @@
   color: #e6edf6;
   border-radius: 12px;
   padding: .75rem .9rem;
-  padding-left: 2.4rem;             /* espacio para icono */
-  height: 46px;                      /* altura pareja */
+  padding-left: 2.4rem;
+  height: 46px;
   font-variant-numeric: tabular-nums;
 }
 .input input::placeholder { color: #98a6bd; }
-
-/* Date especial (ancho 205%) */
-.inputcalendar { position: relative; width: 205%; }
-.inputcalendar .icon-left{
-  position: absolute; left: .8rem; top: 50%; transform: translateY(-50%);
-  opacity: .9; pointer-events: none; line-height: 0;
-}
-.inputcalendar input[type="date"]{
-  width: 100%; height: 46px;
-  padding: .75rem .9rem; padding-left: 2.4rem;
-  border-radius: 12px; border: 1px solid rgba(255,255,255,.10);
-  background: rgba(255,255,255,.06); color: #e6edf6;
-  font: inherit; font-variant-numeric: tabular-nums;
-  appearance: none; -webkit-appearance: none;
-}
-.inputcalendar input[type="date"]::-webkit-calendar-picker-indicator{ opacity: 0; }
-.inputcalendar input[type="date"]::-webkit-date-and-time-value{ text-align: left; }
 
 /* corrige lucide */
 lucide-icon { width: 18px; height: 18px; display: inline-block; vertical-align: middle; line-height: 0; }
 lucide-icon svg{ display:block; width:100%; height:100%; }
 
-/* Number: quita spinners */
+/* Number: quita spinners (por si en futuro usas number) */
 input[type=number]::-webkit-outer-spin-button,
 input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; }
@@ -99,37 +86,32 @@ input[type=number] { -moz-appearance: textfield; }
 .err { color: #ff9b9b; font-size: .86rem; }
 .muted { color: #b6c2d3; }
 
-/* ---------- Sliders ---------- */
+/* ---------- Sliders (no usados aquí, pero coherencia si reusas) ---------- */
 .meter{
   position: relative; height: 22px; border-radius: 999px; overflow: hidden;
   background: rgba(255,255,255,.08); margin: .8rem 0 1rem; border: 1px solid rgba(255,255,255,.10);
 }
-.meter .bar{ height: 100%; background: linear-gradient(180deg,#34d399,#059669); transition: width .35s cubic-bezier(.16,1,.3,1); }
+.meter .bar{
+  height: 100%;
+  background: linear-gradient(180deg,#34d399,#059669);
+  transform-origin: left center;
+  transform: scaleX(var(--p, 0));
+  transition: transform .35s cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+}
 .meter.cyan .bar{ background: linear-gradient(180deg,#22d3ee,#0891b2); }
 .meter .label{ position: absolute; inset: 0; display: grid; place-items: center; font-size: .85rem; font-weight: 800; color: #061018; mix-blend-mode: screen; pointer-events: none; }
 
-.sliders .range-wrap{
-  position: relative;
-  display: grid; grid-template-columns: 1fr 120px;  /* más espacio al número */
-  align-items: center; gap: 1rem;
-  padding-top: 2rem;                                /* reserva para la burbuja */
-}
-.range { accent-color: #34d399; width: 100%; }
-.range.cyan { accent-color: #22d3ee; }
-.number{
-  width: 120px; text-align: right;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  color: #e6edf6; border-radius: 10px; padding: .55rem .6rem;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Burbuja fija */
+/* Burbujas — por si se usan en login en el futuro */
 .bubble{
-  position: absolute; top: -0.8rem; transform: translateX(-50%);
+  position: absolute; top: -0.8rem; left: 0;
+  transform: translateX(calc(var(--p, 0) * 1%)) translateX(-50%);
   padding: .28rem .6rem; border-radius: 1.2rem; font-size: .85rem; font-weight: 800;
   background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12);
-  white-space: nowrap; will-change: left;
+  white-space: nowrap;
+  transition: transform .2s cubic-bezier(.16,1,.3,1);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 .bubble.cyan { background: rgba(34,211,238,.18); border-color: rgba(34,211,238,.35); }
 
@@ -137,64 +119,11 @@ input[type=number] { -moz-appearance: textfield; }
 .visuals { display: grid; align-content: start; gap: .8rem; }
 .aside-title { margin: 0; font-weight: 900; }
 .aside-sub { margin: 0; color: #b6c2d3; }
-.viz { display: grid; grid-template-columns: repeat(2, 1fr); gap: .8rem; margin-top: .8rem; }
-.tile { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: .8rem; display: grid; gap: .6rem; }
-.tile > span { color: #cbd5e1; font-weight: 700; }
-.spark { height: 140px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); overflow: hidden; display: flex; align-items: end; padding: 6px; }
-.spark-bar { width: 100%; height: 40%; border-radius: 6px; background: linear-gradient(180deg,#34d399,#059669); transition: height .45s cubic-bezier(.16,1,.3,1); transform-origin: bottom; }
-.spark-bar.cyan { background: linear-gradient(180deg,#22d3ee,#0891b2); }
 
 .summary { margin-top: 1rem; padding: .9rem; border-radius: 12px; display: grid; gap: .9rem; }
 
-/* ---------- Sexo – pill con color por selección ---------- */
-.sex-group { display: grid; gap: .35rem; }
-.segmented{
-  position: relative;
-  display: grid; grid-template-columns: 1fr 1fr;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
-  padding: .35rem; border-radius: 999px;
-}
-.segmented label{ position: relative; z-index: 2; }
-.segmented input{ position: absolute; inset: 0; opacity: 0; }
-.segmented span{
-  display: grid; place-items: center;
-  height: 40px; border-radius: 999px; color: #cbd5e1; font-weight: 800;
-}
-
-/* Thumb animado (rosa mujer / azul hombre) */
-.segmented .thumb{
-  position: absolute; z-index: 1;
-  inset: .35rem auto .35rem .35rem;
-  width: calc(50% - .35rem);
-  border-radius: 999px;
-  background: linear-gradient(180deg,#f472b6,#be185d); /* mujer por defecto */
-  box-shadow: 0 6px 20px rgba(244,114,182,.25);
-  transition: transform .28s cubic-bezier(.16,1,.3,1), background .28s, box-shadow .28s;
-}
-.segmented:has(input[value="male"]:checked) .thumb{
-  transform: translateX(100%);
-  background: linear-gradient(180deg,#22d3ee,#0891b2);
-  box-shadow: 0 6px 20px rgba(34,211,238,.25);
-}
-
-/* Fallback si :has() no existe */
-@supports not(selector(:has(*))) {
-  .segmented .thumb{ display:none; }
-  .segmented label.female input:checked + span {
-    background: linear-gradient(180deg,#f472b6,#be185d); color:#061018;
-  }
-  .segmented label.male input:checked + span {
-    background: linear-gradient(180deg,#22d3ee,#0891b2); color:#061018;
-  }
-}
-
-/* ---------- BMI ---------- */
+/* ---------- BMI (si decides mostrar algo) ---------- */
 .surface { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; }
-.bmi { display: flex; align-items: center; justify-content: space-between; padding: .8rem .9rem; gap: 1rem; }
-.bmi-left { display: flex; align-items: center; gap: .75rem; }
-.bmi-ic { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; background: rgba(255,255,255,.08); }
-.bmi-title { color: #cbd5e1; font-weight: 700; font-size: .9rem; }
-.bmi-val { font-size: 1.4rem; font-weight: 900; letter-spacing: -.02em; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 0; border-radius: 14px; padding: .9rem 1rem; font-weight: 800; }
 .btn-primary { background: linear-gradient(180deg,#15c26b,#0e9f5b); color:#07131b; box-shadow: 0 10px 30px rgba(16,185,129,.35); }
@@ -202,123 +131,11 @@ input[type=number] { -moz-appearance: textfield; }
 .full { width: 100%; margin-top: .4rem; }
 .server { margin-top: .6rem; }
 
-/* =========================
-   Apariencia IMC (BMI card)
-   ========================= */
-.surface.bmi-card {
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px;
+.messages { margin-top: .8rem; text-align: center; }
+.success { color: #34d399; font-size: .95rem; font-weight: 600; }
+.err.server { color: #ff9b9b; font-size: .9rem; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
-
-.bmi {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: .9rem 1rem;
-}
-
-.bmi-left { display: flex; align-items: center; gap: .8rem; }
-
-/* cuadrito del icono */
-.bmi-ic {
-  width: 44px; height: 44px;
-  display: grid; place-items: center;
-  border-radius: 10px;
-  background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 8px 18px rgba(0,0,0,.15) inset;
-}
-
-/* Tipos y pesos */
-.bmi-title { color: #cbd5e1; font-weight: 700; font-size: .92rem; line-height: 1; margin-bottom: .15rem; }
-.bmi-val   { font-size: 1.6rem; font-weight: 900; letter-spacing: -.02em; }
-
-/* chip de estado a la derecha */
-.bmi-right { display: flex; align-items: center; }
-.pill {
-  padding: .38rem .7rem;
-  border-radius: 999px;
-  font-weight: 800;
-  letter-spacing: .01em;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.10);
-}
-
-/* Colores según rango (coinciden con tu paleta) */
-.pill.green, .bmi-ic.green {
-  background: linear-gradient(180deg,#34d399,#059669) !important;
-  color: #061018;
-  border-color: rgba(52,211,153,.4);
-  box-shadow: 0 8px 24px rgba(16,185,129,.25);
-}
-.pill.cyan, .bmi-ic.cyan {
-  background: linear-gradient(180deg,#22d3ee,#0891b2) !important;
-  color: #061018;
-  border-color: rgba(34,211,238,.4);
-  box-shadow: 0 8px 24px rgba(34,211,238,.25);
-}
-.pill.amber, .bmi-ic.amber {
-  background: linear-gradient(180deg,#f59e0b,#b45309) !important;
-  color: #061018;
-  border-color: rgba(245,158,11,.45);
-  box-shadow: 0 8px 24px rgba(245,158,11,.22);
-}
-.pill.violet, .bmi-ic.violet {
-  background: linear-gradient(180deg,#a78bfa,#6d28d9) !important;
-  color: #061018;
-  border-color: rgba(167,139,250,.4);
-  box-shadow: 0 8px 24px rgba(167,139,250,.25);
-}
-
-/* --- Facts (Edad / Cumple) --- */
-.facts{
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: .8rem;
-  padding: .9rem;
-  border-radius: 12px;
-  margin-top: .8rem;
-}
-
-.fact{
-  display: flex; align-items: center; gap: .8rem;
-  padding: .75rem .9rem;
-  border-radius: 12px;
-  background: rgba(255,255,255,.04);
-  border: 1px solid rgba(255,255,255,.08);
-}
-
-.fact-ic{
-  width: 40px; height: 40px; border-radius: 10px;
-  display: grid; place-items: center;
-  background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.12);
-}
-
-.fact-title{ color: #cbd5e1; font-weight: 700; font-size: .9rem; line-height: 1; }
-.fact-val  { font-size: 1.2rem; font-weight: 900; letter-spacing: -.01em; }
-
-/* Responsive: si el aside es estrecho, apílalas */
-@media (max-width: 960px){
-  .facts{ grid-template-columns: 1fr; }
-}
-
-.messages {
-  margin-top: .8rem;
-  text-align: center;
-}
-
-.success {
-  color: #34d399; /* verde */
-  font-size: .95rem;
-  font-weight: 600;
-}
-
-.err.server {
-  color: #ff9b9b;
-  font-size: .9rem;
-}
-
-
