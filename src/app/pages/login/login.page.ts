@@ -67,7 +67,7 @@ export default class LoginPage {
       if (error) throw error;
 
       this.successMessage.set('Inicio de sesión exitoso, redirigiendo…');
-      setTimeout(() => this.router.navigateByUrl('/dashboard'), 1500);
+      setTimeout(() => this.router.navigateByUrl('/profile'), 1500);
 
     } catch (e: any) {
       this.serverError.set(e?.message ?? 'Error al iniciar sesión.');
