@@ -1,3 +1,305 @@
-import { Component } from '@angular/core'; import { RouterLink } from '@angular/router';
-@Component({ standalone: true, imports: [RouterLink], template: `<section class="container"><h1>Water</h1><a routerLink="/">Volver</a></section>` })
-export default class WaterPage {}
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { SupabaseService } from '../../core/supabase.service';
+import {
+  LucideAngularModule,
+  DropletsIcon, CupSodaIcon, RotateCcwIcon, CalendarDaysIcon,
+  PencilIcon, Trash2Icon, PlusIcon, SaveIcon, XIcon, SettingsIcon
+} from 'lucide-angular';
+import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
+
+type DayItem = { date: string; label: string; total: number };
+type Preset  = { id?: string; name: string; amount_ml: number; icon?: 'cup'|'bottle'; sort_order?: number };
+
+@Component({
+  standalone: true,
+  selector: 'nt-water',
+  imports: [CommonModule, RouterLink, LucideAngularModule],
+  templateUrl: './water.page.html',
+  styleUrls: ['./water.page.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('page', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate('280ms cubic-bezier(.2,.8,.2,1)', style({ opacity: 1, transform: 'none' })),
+        query('.card, .preset', [
+          style({ opacity: 0, transform: 'translateY(6px) scale(.98)' }),
+          stagger(24, animate('220ms cubic-bezier(.2,.8,.2,1)', style({ opacity: 1, transform: 'none' })))
+        ], { optional: true })
+      ])
+    ])
+  ]
+})
+export default class WaterPage {
+  // Icons
+  readonly DropletsIcon = DropletsIcon;
+  readonly CupSodaIcon = CupSodaIcon;
+  readonly RotateCcwIcon = RotateCcwIcon;
+  readonly CalendarDaysIcon = CalendarDaysIcon;
+  readonly PencilIcon = PencilIcon;
+  readonly Trash2Icon = Trash2Icon;
+  readonly PlusIcon = PlusIcon;
+  readonly SaveIcon = SaveIcon;
+  readonly XIcon = XIcon;
+  readonly SettingsIcon = SettingsIcon;
+
+  private supabase = inject(SupabaseService);
+
+  // Estado base
+  loading = signal(true);
+  err = signal<string | null>(null);
+  uid = signal<string | null>(null);
+
+  // Meta diaria (fallback 2000)
+  goal = signal<number>(2000);
+
+  // Semana
+  week = signal<DayItem[]>([]);
+  sel = signal<number>(0);
+  todayIndex = computed(() => this.week().findIndex(d => d.date === this.toYMD(new Date())));
+  isToday = computed(() => this.sel() === this.todayIndex());
+
+  // Registro para "deshacer"
+  lastInsertId = signal<string | null>(null);
+
+  // Presets
+  presets = signal<Preset[]>([]);
+  showPresetModal = signal(false);
+  editingPreset = signal<Preset | null>(null);
+
+  // Computados UI
+  selectedDay = computed(() => this.week()[this.sel()]);
+  selectedTotal = computed(() => this.selectedDay()?.total ?? 0);
+  dayPct = computed(() => {
+    const g = this.goal() || 1;
+    const pct = (this.selectedTotal() / g) * 100;
+    return Math.max(0, Math.min(100, +pct.toFixed(1)));
+  });
+
+  // ====== Ciclo de vida ======
+  async ngOnInit() {
+    try {
+      this.loading.set(true);
+
+      const { data: ures, error: uerr } = await this.supabase.client.auth.getUser();
+      if (uerr) throw uerr;
+      const uid = ures.user?.id;
+      if (!uid) throw new Error('Sesión no válida');
+      this.uid.set(uid);
+
+      // Meta de agua desde user_recommendations
+      const { data: rec } = await this.supabase.client
+        .from('user_recommendations')
+        .select('water_ml')
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (rec?.water_ml) this.goal.set(Number(rec.water_ml));
+
+      await this.loadWeek();
+      await this.loadPresetsOrSeed();
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo cargar Agua.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // ====== Semana / timeline ======
+  private startOfWeek(d: Date): Date {
+    const day = d.getDay();               // 0..6 (Dom)
+    const diff = (day === 0 ? -6 : 1 - day);
+    const out = new Date(d);
+    out.setDate(d.getDate() + diff);
+    out.setHours(0, 0, 0, 0);
+    return out;
+  }
+  private dayLabel(d: Date): string { return ['D','L','M','M','J','V','S'][d.getDay()]; }
+  private toYMD(d: Date): string { return d.toISOString().slice(0,10); }
+
+  async loadWeek() {
+    const uid = this.uid()!;
+    const today = new Date();
+    const start = this.startOfWeek(today);
+    const end = new Date(start); end.setDate(start.getDate()+7);
+
+    const days: DayItem[] = [];
+    for (let i=0;i<7;i++){
+      const d = new Date(start); d.setDate(start.getDate()+i);
+      days.push({ date: this.toYMD(d), label: this.dayLabel(d), total: 0 });
+    }
+
+    const { data: rows } = await this.supabase.client
+      .from('water_intake')
+      .select('amount_ml, logged_at')
+      .eq('user_id', uid)
+      .gte('logged_at', start.toISOString())
+      .lt('logged_at', end.toISOString());
+
+    for (const r of rows ?? []) {
+      const y = this.toYMD(new Date(r.logged_at));
+      const i = days.findIndex(d => d.date === y);
+      if (i >= 0) days[i].total += Number(r.amount_ml) || 0;
+    }
+    this.week.set(days);
+    this.sel.set(this.todayIndex() >= 0 ? this.todayIndex() : 0);
+  }
+
+  selectDay(i: number){ this.sel.set(i); }
+  isTodayIdx(i: number){ return i === this.todayIndex(); }
+
+  // ====== Acciones ======
+  async addPreset(ml: number){
+    if (!this.isToday()) return;
+    const uid = this.uid(); if(!uid) return;
+
+    // Optimista
+    const w = [...this.week()];
+    const i = this.sel();
+    w[i] = { ...w[i], total: (w[i]?.total ?? 0) + ml };
+    this.week.set(w);
+
+    try{
+      const { data, error } = await this.supabase.client
+        .from('water_intake')
+        .insert({ user_id: uid, amount_ml: ml })
+        .select('id')
+        .single();
+      if (error) throw error;
+      this.lastInsertId.set(data?.id ?? null);
+    }catch(e){
+      // revertir
+      const back = [...this.week()];
+      back[i] = { ...back[i], total: Math.max(0,(back[i]?.total ?? 0) - ml) };
+      this.week.set(back);
+      this.err.set((e as any)?.message ?? 'No se pudo registrar el agua.');
+      setTimeout(()=>this.err.set(null), 2200);
+    }
+  }
+
+  async undoLast(){
+    const id = this.lastInsertId();
+    if (!id || !this.isToday()) return;
+    try{
+      const { data, error } = await this.supabase.client
+        .from('water_intake')
+        .delete()
+        .eq('id', id)
+        .select('amount_ml')
+        .maybeSingle();
+      if (error) throw error;
+      const ml = Number(data?.amount_ml) || 0;
+      const w = [...this.week()];
+      const i = this.sel();
+      w[i] = { ...w[i], total: Math.max(0,(w[i]?.total ?? 0) - ml) };
+      this.week.set(w);
+      this.lastInsertId.set(null);
+    }catch(e){
+      this.err.set((e as any)?.message ?? 'No se pudo deshacer.');
+      setTimeout(()=>this.err.set(null), 2000);
+    }
+  }
+
+  // ====== Presets ======
+  private PERU_DEFAULTS: Preset[] = [
+    { name:'Vaso pequeño (casa)', amount_ml:200,  icon:'cup',    sort_order:1 },
+    { name:'Vaso mediano (casa)', amount_ml:300,  icon:'cup',    sort_order:2 },
+    { name:'Vaso grande (casa)',  amount_ml:350,  icon:'cup',    sort_order:3 },
+    { name:'Cielo 625 ml',        amount_ml:625,  icon:'bottle', sort_order:10 },
+    { name:'Cielo 1 L',           amount_ml:1000, icon:'bottle', sort_order:11 },
+    { name:'Cielo 2.5 L',         amount_ml:2500, icon:'bottle', sort_order:12 },
+    { name:'San Luis 625 ml',     amount_ml:625,  icon:'bottle', sort_order:20 },
+    { name:'San Luis 1 L',        amount_ml:1000, icon:'bottle', sort_order:21 },
+    { name:'San Luis 2.5 L',      amount_ml:2500, icon:'bottle', sort_order:22 },
+    { name:'San Mateo 600 ml',    amount_ml:600,  icon:'bottle', sort_order:30 },
+    { name:'San Mateo 1 L',       amount_ml:1000, icon:'bottle', sort_order:31 },
+    { name:'San Mateo 2.5 L',     amount_ml:2500, icon:'bottle', sort_order:32 },
+  ];
+
+  async loadPresetsOrSeed(){
+    const uid = this.uid()!;
+    const { data: list } = await this.supabase.client
+      .from('water_presets')
+      .select('id, name, amount_ml, icon, sort_order')
+      .eq('user_id', uid)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (!list || list.length === 0){
+      const seed = this.PERU_DEFAULTS.map(p => ({...p, user_id: uid}));
+      await this.supabase.client.from('water_presets').insert(seed);
+      const { data: after } = await this.supabase.client
+        .from('water_presets')
+        .select('id, name, amount_ml, icon, sort_order')
+        .eq('user_id', uid)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      this.presets.set(after ?? []);
+    } else {
+      this.presets.set(list);
+    }
+  }
+
+  openAdd(){ this.editingPreset.set({ name:'', amount_ml:300, icon:'cup' }); this.showPresetModal.set(true); }
+  openEdit(p: Preset){ this.editingPreset.set({ ...p }); this.showPresetModal.set(true); }
+  closePresetModal(){ this.showPresetModal.set(false); this.editingPreset.set(null); }
+
+  async savePreset(){
+    const p = this.editingPreset(); if(!p) return;
+    try{
+      if (p.id){
+        const { error } = await this.supabase.client
+          .from('water_presets')
+          .update({ name: p.name, amount_ml: p.amount_ml, icon: p.icon })
+          .eq('id', p.id);
+        if (error) throw error;
+      }else{
+        const { error } = await this.supabase.client
+          .from('water_presets')
+          .insert({ user_id: this.uid(), name: p.name, amount_ml: p.amount_ml, icon: p.icon, sort_order: 99 });
+        if (error) throw error;
+      }
+      await this.loadPresetsOrSeed();
+      this.closePresetModal();
+    }catch(e:any){
+      this.err.set(e?.message ?? 'No se pudo guardar el preset.');
+      setTimeout(()=>this.err.set(null), 2200);
+    }
+  }
+
+  async deletePreset(p: Preset){
+    if (!p.id) return;
+    try{
+      const { error } = await this.supabase.client.from('water_presets').delete().eq('id', p.id);
+      if (error) throw error;
+      await this.loadPresetsOrSeed();
+    }catch(e:any){
+      this.err.set(e?.message ?? 'No se pudo eliminar el preset.');
+      setTimeout(()=>this.err.set(null), 2200);
+    }
+  }
+
+  // Helpers para template
+  iconFor(p: Preset){ return (p.icon ?? 'bottle') === 'cup' ? this.CupSodaIcon : this.DropletsIcon; }
+  pctFor(d: DayItem){
+    const g = this.goal() || 1;
+    const pct = (d.total / g) * 100;
+    return Math.max(0, Math.min(100, +pct.toFixed(1)));
+  }
+
+  // Inputs modal
+  private updateEditingPreset(p: Partial<Preset>){
+    const cur = this.editingPreset(); if(!cur) return;
+    this.editingPreset.set({ ...cur, ...p });
+  }
+  onPresetNameInput(ev: Event){ this.updateEditingPreset({ name: (ev.target as HTMLInputElement).value ?? '' }); }
+  onPresetAmountInput(ev: Event){
+    const v = Number((ev.target as HTMLInputElement).value);
+    this.updateEditingPreset({ amount_ml: isNaN(v) ? 0 : v });
+  }
+  onPresetIconChange(ev: Event){
+    const v = (ev.target as HTMLSelectElement).value as 'cup'|'bottle';
+    this.updateEditingPreset({ icon: v || 'bottle' });
+  }
+}

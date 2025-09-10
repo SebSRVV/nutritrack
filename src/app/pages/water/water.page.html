@@ -1,0 +1,146 @@
+<section class="water-root" [@page] *ngIf="!loading(); else skel">
+  <header class="water-header container">
+    <div class="brand">
+      <span class="dot"></span>
+      <strong>Agua</strong>
+    </div>
+    <nav class="actions">
+      <a routerLink="/dashboard" class="btn">Dashboard</a>
+      <a routerLink="/profile" class="btn ghost">
+        <lucide-icon [img]="SettingsIcon"></lucide-icon> Configuraciones
+      </a>
+    </nav>
+  </header>
+
+  <div class="container grid">
+    <!-- Progreso + presets -->
+    <section class="card progress glow">
+      <div class="head">
+        <h2>Progreso diario</h2>
+        <div class="goal">Meta: <b>{{ goal() }}</b> ml</div>
+      </div>
+
+      <div class="meter" aria-label="Progreso del día">
+        <div class="bar" [style.width.%]="dayPct()"></div>
+        <!-- La burbuja ya no tapa la barra; va arriba -->
+        <div class="bubble" [style.left.%]="dayPct()">
+          {{ selectedTotal() }} / {{ goal() }} ml
+        </div>
+      </div>
+
+      <div class="presets">
+        <button type="button" class="preset"
+                *ngFor="let p of presets()"
+                (click)="addPreset(p.amount_ml)"
+                [disabled]="!isToday()">
+          <lucide-icon [img]="iconFor(p)"></lucide-icon>
+          <span class="p-top">{{ p.name }}</span>
+          <span class="p-ml">+{{ p.amount_ml }} ml</span>
+          <div class="preset-actions">
+            <button type="button" class="icon-btn" (click)="$event.stopPropagation(); openEdit(p)">
+              <lucide-icon [img]="PencilIcon"></lucide-icon>
+            </button>
+            <button type="button" class="icon-btn danger" (click)="$event.stopPropagation(); deletePreset(p)">
+              <lucide-icon [img]="Trash2Icon"></lucide-icon>
+            </button>
+          </div>
+        </button>
+
+        <button class="preset add" type="button" (click)="openAdd()">
+          <lucide-icon [img]="PlusIcon"></lucide-icon>
+          <span class="p-top">Nuevo preset</span>
+          <span class="p-ml">nombre + ml</span>
+        </button>
+
+        <button class="preset undo" type="button"
+                (click)="undoLast()" [disabled]="!isToday() || !lastInsertId()">
+          <lucide-icon [img]="RotateCcwIcon"></lucide-icon>
+          <span class="p-top">Deshacer</span>
+          <span class="p-ml">último</span>
+        </button>
+      </div>
+
+      <p class="hint">El registro solo afecta el día actual. Puedes crear, editar y eliminar presets.</p>
+      <p class="err" *ngIf="err()">{{ err() }}</p>
+    </section>
+
+    <!-- Semana -->
+    <section class="card week">
+      <div class="week-head">
+        <div class="title">
+          <lucide-icon [img]="CalendarDaysIcon"></lucide-icon>
+          Semana
+        </div>
+        <div class="legend">
+          <span><i class="dot low"></i> Bajo</span>
+          <span><i class="dot mid"></i> Medio</span>
+          <span><i class="dot ok"></i> Ok</span>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <button class="day"
+                *ngFor="let d of week(); let i = index"
+                (click)="selectDay(i)"
+                [class.sel]="sel() === i"
+                [class.today]="isTodayIdx(i)"
+                [attr.aria-label]="d.date">
+
+          <div class="badge"
+               [class.low]="(d.total/goal()) < .5"
+               [class.mid]="(d.total/goal()) >= .5 && (d.total/goal()) < 1"
+               [class.ok]="(d.total/goal()) >= 1">
+            {{ d.label }}
+          </div>
+
+          <div class="ticks">
+            <div class="tick" [style.height.%]="pctFor(d)"></div>
+          </div>
+
+          <div class="ml">{{ d.total }} ml</div>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal Preset -->
+  <div class="modal-backdrop" *ngIf="showPresetModal()" (click)="closePresetModal()"></div>
+  <div class="modal" *ngIf="showPresetModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <strong>{{ editingPreset()?.id ? 'Editar preset' : 'Nuevo preset' }}</strong>
+        <button class="icon-btn" (click)="closePresetModal()"><lucide-icon [img]="XIcon"></lucide-icon></button>
+      </div>
+
+      <div class="form-row">
+        <label>Nombre</label>
+        <input type="text" [value]="editingPreset()?.name || ''" (input)="onPresetNameInput($event)">
+      </div>
+
+      <div class="form-row">
+        <label>Mililitros</label>
+        <input type="number" min="50" max="10000"
+               [value]="editingPreset()?.amount_ml || 250" (input)="onPresetAmountInput($event)">
+      </div>
+
+      <div class="form-row">
+        <label>Icono</label>
+        <select [value]="editingPreset()?.icon || 'bottle'" (change)="onPresetIconChange($event)">
+          <option value="bottle">Botella</option>
+          <option value="cup">Vaso</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" (click)="closePresetModal()">Cancelar</button>
+        <button class="btn" (click)="savePreset()">
+          <lucide-icon [img]="SaveIcon"></lucide-icon> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<ng-template #skel>
+  <div class="container loading">Cargando…</div>
+</ng-template>
