@@ -4,7 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "node scripts/generate-env.mjs && ng build --configuration production",
+    "build": "node scripts/generate-env.cjs && ng build --configuration production",
+    "build:dev": "node scripts/generate-env.cjs && ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:nutritrack": "node dist/nutritrack/server/server.mjs"
