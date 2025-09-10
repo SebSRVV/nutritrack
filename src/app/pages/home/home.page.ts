@@ -5,7 +5,7 @@ import {
 } from '@angular/animations';
 import {
   LucideAngularModule,
-  ActivityIcon, AppleIcon, GoalIcon, DropletsIcon, BarChart3Icon
+  ActivityIcon, AppleIcon, GoalIcon, DropletsIcon
 } from 'lucide-angular';
 
 @Component({
@@ -44,7 +44,7 @@ import {
         style({ opacity: 0 }),
         group([
           animate('700ms ease-out', style({ opacity: .9 })),
-          animate('2600ms 200ms ease-in-out', style({ opacity: .35 })),
+          animate('2600ms 200ms ease-in-out', style({ opacity: .30 })),
         ]),
       ]),
     ]),
@@ -55,7 +55,6 @@ export default class HomePage {
   readonly AppleIcon = AppleIcon;
   readonly GoalIcon = GoalIcon;
   readonly DropletsIcon = DropletsIcon;
-  readonly BarChart3Icon = BarChart3Icon;
 
   readonly year = new Date().getFullYear();
 }

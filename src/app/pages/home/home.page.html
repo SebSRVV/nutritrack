@@ -5,6 +5,7 @@
     <div class="container nav-inner">
       <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
         <span class="brand-dot"></span>
+        <!-- Icono del sitio -->
         <span class="brand-name">NutriTrack</span>
       </a>
       <nav class="nav-actions" aria-label="Navegación principal">
@@ -34,8 +35,8 @@
       </p>
 
       <div class="hero-bit hero-ctas">
+        <!-- Deja solo el CTA principal -->
         <a routerLink="/log" class="btn btn-primary">Registrar mi primera comida</a>
-        <a routerLink="/goals" class="btn btn-ghost">Crear mis metas</a>
       </div>
     </div>
 
@@ -77,13 +78,7 @@
             Visualiza el consumo por categorías (frutas, vegetales, proteínas, etc.) y compáralo
             con tus metas del día. Exporta un informe PDF cuando lo necesites.
           </p>
-          <div class="cta-row">
-            <a routerLink="/reports" class="btn btn-primary">
-              <lucide-icon [img]="BarChart3Icon" class="icon-18" aria-hidden="true"></lucide-icon>
-              <span>Generar reporte</span>
-            </a>
-            <a routerLink="/log" class="btn btn-ghost">Seguir registrando</a>
-          </div>
+          <!-- Se eliminaron los botones: Generar reporte / Seguir registrando -->
         </div>
 
         <div class="progress-tiles" aria-hidden="true">

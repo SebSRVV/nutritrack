@@ -18,6 +18,28 @@ body {
   color: #e6edf6;
 }
 
+/* ===== Logo global en la barra (aplica a TODAS las páginas) ===== */
+a.brand{
+  display:inline-flex;
+  align-items:center;
+  gap:.55rem;
+}
+
+/* Inserta el icono usando CSS (se copia desde /public/icon.png) */
+a.brand::before{
+  content:"";
+  display:inline-block;
+  width:26px;
+  height:26px;
+  border-radius:7px;
+  background: url("/icon.png") center/cover no-repeat;
+  box-shadow: 0 6px 18px rgba(34,211,238,.25);
+}
+
+/* Oculta el cuadrado antiguo si alguna página aún lo tiene en el HTML */
+.brand-dot{ display:none !important; }
+
+
 /* Evita que imágenes/svg afecten el flujo de línea */
 img, svg, video, canvas { display: block; max-width: 100%; }
 
