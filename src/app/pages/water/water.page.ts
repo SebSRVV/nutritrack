@@ -69,14 +69,25 @@ export default class WaterPage {
   showPresetModal = signal(false);
   editingPreset = signal<Preset | null>(null);
 
-  // Computados UI
+  // ====== UI Computados ======
   selectedDay = computed(() => this.week()[this.sel()]);
   selectedTotal = computed(() => this.selectedDay()?.total ?? 0);
+
   dayPct = computed(() => {
     const g = this.goal() || 1;
     const pct = (this.selectedTotal() / g) * 100;
     return Math.max(0, Math.min(100, +pct.toFixed(1)));
   });
+
+  selectedDateLabel = computed(() => {
+    const d = this.selectedDay(); if (!d) return '';
+    const date = new Date(d.date + 'T00:00:00');
+    return this.formatDateEs(date);
+  });
+
+  progressText = computed(() => `${this.selectedTotal()} ml de ${this.goal()} ml`);
+
+  selectedLevel = computed<'low'|'mid'|'ok'>(() => this.levelFor(this.selectedTotal(), this.goal()));
 
   // ====== Ciclo de vida ======
   async ngOnInit() {
@@ -89,7 +100,6 @@ export default class WaterPage {
       if (!uid) throw new Error('Sesión no válida');
       this.uid.set(uid);
 
-      // Meta de agua desde user_recommendations
       const { data: rec } = await this.supabase.client
         .from('user_recommendations')
         .select('water_ml')
@@ -108,7 +118,7 @@ export default class WaterPage {
 
   // ====== Semana / timeline ======
   private startOfWeek(d: Date): Date {
-    const day = d.getDay();               // 0..6 (Dom)
+    const day = d.getDay();
     const diff = (day === 0 ? -6 : 1 - day);
     const out = new Date(d);
     out.setDate(d.getDate() + diff);
@@ -117,6 +127,19 @@ export default class WaterPage {
   }
   private dayLabel(d: Date): string { return ['D','L','M','M','J','V','S'][d.getDay()]; }
   private toYMD(d: Date): string { return d.toISOString().slice(0,10); }
+
+  private formatDateEs(d: Date): string {
+    const dia = d.toLocaleDateString('es-PE', { weekday: 'long' });
+    const num = d.getDate();
+    return `${dia} ${num}`;
+  }
+
+  levelFor(total: number, goal: number): 'low'|'mid'|'ok' {
+    const ratio = (goal || 1) ? total / (goal || 1) : 0;
+    if (ratio >= 1) return 'ok';
+    if (ratio >= 0.5) return 'mid';
+    return 'low';
+  }
 
   async loadWeek() {
     const uid = this.uid()!;
@@ -169,9 +192,9 @@ export default class WaterPage {
       if (error) throw error;
       this.lastInsertId.set(data?.id ?? null);
     }catch(e){
-      // revertir
       const back = [...this.week()];
-      back[i] = { ...back[i], total: Math.max(0,(back[i]?.total ?? 0) - ml) };
+      const i2 = this.sel();
+      back[i2] = { ...back[i2], total: Math.max(0,(back[i2]?.total ?? 0) - ml) };
       this.week.set(back);
       this.err.set((e as any)?.message ?? 'No se pudo registrar el agua.');
       setTimeout(()=>this.err.set(null), 2200);
@@ -241,6 +264,27 @@ export default class WaterPage {
     }
   }
 
+  // --- helpers para el modal de presets ---
+  private updateEditingPreset(p: Partial<Preset>){
+    const cur = this.editingPreset(); if (!cur) return;
+    this.editingPreset.set({ ...cur, ...p });
+  }
+
+  onPresetNameInput(ev: Event){
+    this.updateEditingPreset({ name: (ev.target as HTMLInputElement).value ?? '' });
+  }
+
+  onPresetAmountInput(ev: Event){
+    const v = Number((ev.target as HTMLInputElement).value);
+    this.updateEditingPreset({ amount_ml: isNaN(v) ? 0 : v });
+  }
+
+  onPresetIconChange(ev: Event){
+    const v = (ev.target as HTMLSelectElement).value as 'cup' | 'bottle';
+    this.updateEditingPreset({ icon: v || 'bottle' });
+  }
+
+
   openAdd(){ this.editingPreset.set({ name:'', amount_ml:300, icon:'cup' }); this.showPresetModal.set(true); }
   openEdit(p: Preset){ this.editingPreset.set({ ...p }); this.showPresetModal.set(true); }
   closePresetModal(){ this.showPresetModal.set(false); this.editingPreset.set(null); }
@@ -268,7 +312,7 @@ export default class WaterPage {
     }
   }
 
-  async deletePreset(p: Preset){
+  deletePreset = async (p: Preset) => {
     if (!p.id) return;
     try{
       const { error } = await this.supabase.client.from('water_presets').delete().eq('id', p.id);
@@ -278,7 +322,7 @@ export default class WaterPage {
       this.err.set(e?.message ?? 'No se pudo eliminar el preset.');
       setTimeout(()=>this.err.set(null), 2200);
     }
-  }
+  };
 
   // Helpers para template
   iconFor(p: Preset){ return (p.icon ?? 'bottle') === 'cup' ? this.CupSodaIcon : this.DropletsIcon; }
@@ -287,19 +331,5 @@ export default class WaterPage {
     const pct = (d.total / g) * 100;
     return Math.max(0, Math.min(100, +pct.toFixed(1)));
   }
-
-  // Inputs modal
-  private updateEditingPreset(p: Partial<Preset>){
-    const cur = this.editingPreset(); if(!cur) return;
-    this.editingPreset.set({ ...cur, ...p });
-  }
-  onPresetNameInput(ev: Event){ this.updateEditingPreset({ name: (ev.target as HTMLInputElement).value ?? '' }); }
-  onPresetAmountInput(ev: Event){
-    const v = Number((ev.target as HTMLInputElement).value);
-    this.updateEditingPreset({ amount_ml: isNaN(v) ? 0 : v });
-  }
-  onPresetIconChange(ev: Event){
-    const v = (ev.target as HTMLSelectElement).value as 'cup'|'bottle';
-    this.updateEditingPreset({ icon: v || 'bottle' });
-  }
+  levelForDay(d: DayItem){ return this.levelFor(d.total, this.goal()); }
 }
