@@ -1,59 +1,98 @@
-# Nutritrack
+# 🌱 NutriTrack Web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.2.2.
+**Diseño e Implementación de una Aplicación Web para el Seguimiento de la Alimentación Saludable**  
+Proyecto 3 — Ingeniería de Software (1ACC0236)
 
-## Development server
+---
 
-To start a local development server, run:
+## 📌 Descripción
 
-```bash
-ng serve
-```
+NutriTrack Web es una aplicación diseñada para ayudar a las personas a **gestionar su alimentación diaria**, incluso si no cuentan con asesoría nutricional profesional.  
+El sistema permite **registrar comidas, establecer metas, monitorear hábitos saludables y visualizar el progreso** mediante gráficos y reportes personalizados.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Su objetivo principal es **promover la autogestión, la reflexión y el aprendizaje continuo** en torno a la alimentación saludable, brindando una herramienta **accesible, práctica y educativa**.
 
-## Code scaffolding
+---
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## 🎯 Objetivo
 
-```bash
-ng generate component component-name
-```
+Diseñar e implementar una aplicación web que permita a los usuarios:
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+- Registrar sus comidas diarias.
+- Establecer y dar seguimiento a metas nutricionales personales.
+- Visualizar su progreso mediante reportes e indicadores.
+- Adoptar prácticas alimenticias saludables de manera autónoma.
 
-```bash
-ng generate --help
-```
+---
 
-## Building
+## 👥 Segmento objetivo
 
-To build the project run:
+- Personas que desean mejorar su alimentación diaria pero no cuentan con orientación nutricional profesional.
+- Jóvenes y adultos interesados en adquirir **mejores hábitos alimenticios** a través del monitoreo personal y educativo.
 
-```bash
-ng build
-```
+---
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## 🌍 Visión del proyecto
 
-## Running unit tests
+NutriTrack surge como respuesta a la **falta de acceso a orientación nutricional básica**, ofreciendo una solución digital que acompañe a los usuarios en el **seguimiento de su alimentación**.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+La plataforma busca convertirse en un espacio para **reflexionar sobre las decisiones alimenticias, establecer metas y adoptar prácticas más saludables**, mediante una interfaz moderna y comprensible.
 
-```bash
-ng test
-```
+---
 
-## Running end-to-end tests
+## ⚙️ Funcionalidades principales
 
-For end-to-end (e2e) testing, run:
+### 🔐 Módulo 1: Gestión de cuenta y perfil
+- Crear cuenta e iniciar sesión.
+- Editar perfil (datos personales, nivel de actividad, dieta preferida).
+- Configurar unidades de medida.
+- Eliminar cuenta con confirmación.
 
-```bash
-ng e2e
-```
+### 🎯 Módulo 2: Metas alimentarias personales
+- Definir objetivos (ej: aumentar vegetales, reducir azúcar).
+- Registrar avances diarios.
+- Visualizar barras de progreso.
+- Ajustar o eliminar metas.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+### 🍽️ Módulo 3: Registro de alimentación diaria
+- Registrar desayuno, almuerzo, cena y snacks.
+- Clasificar alimentos por tipo (frutas, proteínas, ultraprocesados, etc.).
+- Editar o eliminar registros.
+- Ver resumen diario.
 
-## Additional Resources
+### 💧 Módulo 4: Prácticas saludables
+- Seleccionar prácticas sugeridas (ej: beber agua, evitar frituras).
+- Marcar cumplimiento diario.
+- Ver frecuencia semanal de hábitos cumplidos.
+- Reemplazar o eliminar prácticas.
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+### 📊 Módulo 5: Reportes y análisis de progreso
+- Ver gráficos de consumo por tipo de alimento.
+- Comparar consumo real vs. metas fijadas.
+- Identificar tendencias semanales o mensuales.
+- Descargar reportes nutricionales en PDF.
+
+---
+
+## 🛠️ Tecnologías
+
+- **Frontend:** Angular
+- **Backend:** Supabase / Node.js
+- **Base de datos:** PostgreSQL
+- **Gráficos:** Chart.js
+- **Estilos:** CSS moderno (responsive, dark mode)
+
+---
+
+## 📈 Estado del proyecto
+
+🔹 **Fase actual:** Diseño e implementación inicial.
+
+---
+
+## 👨‍💻 Equipo
+
+Proyecto desarrollado por el estudiante **SebRVV**  
+Startup académica: **NutriTrack**
+
+---
