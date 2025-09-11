@@ -20,6 +20,7 @@ export const routes: Routes = [
   { path: 'goals',         loadComponent: () => import('./pages/goals/goals.page') },
   { path: 'alimentation',  loadComponent: () => import('./pages/alimentation/alimentation.page') },
   { path: 'water',         loadComponent: () => import('./pages/water/water.page') },
+  { path:'panel', loadComponent: () => import('./pages/panel/panel.page') },
 
   { path: '**', redirectTo: '' },
 ];

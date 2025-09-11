@@ -1,0 +1,74 @@
+<section class="panel-root" *ngIf="!loading(); else skel">
+  <header class="panel-header container">
+    <a routerLink="/dashboard" class="btn back">
+      <lucide-icon [img]="ChevronLeftIcon"></lucide-icon> Dashboard
+    </a>
+    <h1><lucide-icon [img]="BarChart3Icon"></lucide-icon> Panel de alimentación</h1>
+    <div></div>
+  </header>
+
+  <div class="container grid">
+
+    <!-- Resumen hoy -->
+    <section class="card today">
+      <div class="head">
+        <div class="title">
+          <lucide-icon [img]="FlameIcon"></lucide-icon>
+          Hoy
+        </div>
+        <div class="kcal">{{ todayKcal | number:'1.0-0' }} <span>kcal</span></div>
+      </div>
+
+      <div class="mini-cards">
+        <div class="mini"><div class="k">Proteína</div><div class="v">{{ todayProt | number:'1.0-1' }} g</div></div>
+        <div class="mini"><div class="k">Carbohidratos</div><div class="v">{{ todayCarb | number:'1.0-1' }} g</div></div>
+        <div class="mini"><div class="k">Grasas</div><div class="v">{{ todayFat  | number:'1.0-1' }} g</div></div>
+      </div>
+
+      <div class="donut-wrap">
+        <div class="canvas-wrap">
+          <canvas #todayDonut aria-label="Distribución de macros hoy" role="img"></canvas>
+        </div>
+      </div>
+
+      <p class="hint"><lucide-icon [img]="ClockIcon"></lucide-icon> Datos de hoy (00:00–23:59)</p>
+    </section>
+
+    <!-- Línea calorías -->
+    <section class="card" [attr.data-empty]="kcalEmpty ? 'No hay registros en el rango.' : null">
+      <div class="card-title"><lucide-icon [img]="ActivityIcon"></lucide-icon> Calorías por día (últimos {{days}})</div>
+      <div class="canvas-wrap">
+        <canvas #caloriesLine aria-label="Calorías por día" role="img"></canvas>
+      </div>
+    </section>
+
+    <!-- Macros stacked -->
+    <section class="card" [attr.data-empty]="macroEmpty ? 'No hay registros de macros en el rango.' : null">
+      <div class="card-title"><lucide-icon [img]="ActivityIcon"></lucide-icon> Macros por día (g)</div>
+      <div class="canvas-wrap">
+        <canvas #macrosStack aria-label="Macros por día" role="img"></canvas>
+      </div>
+    </section>
+
+    <!-- Por tipo -->
+    <section class="card" [attr.data-empty]="typeEmpty ? 'Sin registros por tipo.' : null">
+      <div class="card-title"><lucide-icon [img]="PieChartIcon"></lucide-icon> Calorías por tipo de comida</div>
+      <div class="canvas-wrap">
+        <canvas #typeBars aria-label="kcal por tipo de comida" role="img"></canvas>
+      </div>
+    </section>
+
+    <!-- Top alimentos -->
+    <section class="card" [attr.data-empty]="topEmpty ? 'Aún no hay alimentos destacados.' : null">
+      <div class="card-title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Top 10 alimentos por kcal</div>
+      <div class="canvas-wrap">
+        <canvas #topFoods aria-label="Top alimentos" role="img"></canvas>
+      </div>
+    </section>
+
+  </div>
+</section>
+
+<ng-template #skel>
+  <div class="container loading">Cargando panel…</div>
+</ng-template>
