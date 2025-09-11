@@ -4,7 +4,6 @@
       <span class="brand-name">NutriTrack</span>
     </a>
 
-
     <nav class="quick-links">
       <a routerLink="/profile" class="btn btn-ghost">
         <lucide-icon [img]="SettingsIcon"></lucide-icon>
@@ -37,27 +36,38 @@
         </span>
       </div>
 
-      <div class="kpis">
+      <div class="kpis" align="center">
         <div class="kpi kpi--imc">
-          <div class="k"><lucide-icon [img]="HeartPulseIcon"></lucide-icon> IMC</div>
+          <div class="k" ><lucide-icon [img]="HeartPulseIcon"></lucide-icon> IMC</div>
           <div class="v xl">{{ bmi() ?? '—' }}</div>
           <div class="hint">{{ bmiLabel() }}</div>
         </div>
 
-        <div class="kpi kpi--kcal">
+        <div class="kpi kpi--kcal" align="center">
           <div class="k"><lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Calorías recomendadas</div>
           <div class="v">{{ recKcal() ?? '—' }}<span class="unit">kcal/día</span></div>
           <div class="hint">Según sexo, edad, talla, peso y objetivo</div>
         </div>
 
-        <div class="kpi kpi--water">
+        <!-- NUEVO: KPI de alimentación (progreso) -->
+        <div class="kpi kpi--food" align="center">
+          <div class="k"><lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Alimentación (hoy)</div>
+          <div class="v">
+            {{ todayKcal() | number:'1.0-0' }}
+            <span class="unit">/ {{ recKcal() ?? 0 }} kcal</span>
+          </div>
+          <div class="meter" align="left"><div class="bar" [style.width.%]="foodPct()"></div></div>
+          <div class="hint">Progreso diario de calorías</div>
+        </div>
+
+        <div class="kpi kpi--water" align="center">
           <div class="k"><lucide-icon [img]="DropletsIcon"></lucide-icon> Agua recomendada</div>
           <div class="v">{{ recWater() ?? '—' }}<span class="unit">ml/día</span></div>
-          <div class="meter"><div class="bar" [style.width.%]="waterPct()"></div></div>
+          <div class="meter" align="left"><div class="bar" [style.width.%]="waterPct()"></div></div>
           <div class="hint">Hoy: {{ waterMl() }} ml</div>
         </div>
 
-        <div class="kpi kpi--goals">
+        <div class="kpi kpi--goals" align="center">
           <div class="k"><lucide-icon [img]="TargetIcon"></lucide-icon> Metas activas</div>
           <div class="v">{{ goalsCount() }}</div>
           <a routerLink="/goals" class="more">Ver metas <lucide-icon [img]="ChevronRightIcon"></lucide-icon></a>
@@ -87,6 +97,20 @@
         <p class="hint">Registra vasos/botellas y cumple tu meta diaria.</p>
         <span class="cta">Ir a agua</span>
       </a>
+    </section>
+
+    <!-- NUEVO: Panel inferior /panel -->
+    <section class="card panel-alimentation">
+      <div class="panel-row">
+        <div class="panel-text">
+          <div class="panel-title">Panel de alimentación</div>
+          <p class="panel-sub">Visualiza tu progreso, histogramas y tendencias.</p>
+        </div>
+        <a routerLink="/panel" class="btn panel-cta">
+          Ir al panel
+          <lucide-icon [img]="ChevronRightIcon"></lucide-icon>
+        </a>
+      </div>
     </section>
   </div>
 

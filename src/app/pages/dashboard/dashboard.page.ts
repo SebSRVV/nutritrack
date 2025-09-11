@@ -94,6 +94,15 @@ export default class DashboardPage {
     return pct > 100 ? 100 : pct < 0 ? 0 : +pct.toFixed(1);
   });
 
+  // === NUEVO: % progreso de alimentación (kcal) ===
+  foodPct = computed(() => {
+    const goal = this.recKcal();
+    const v = this.todayKcal();
+    if (!goal || goal <= 0) return 0;
+    const p = (v / goal) * 100;
+    return Math.max(0, Math.min(100, +p.toFixed(1)));
+  });
+
   // ---------- Helpers (fallback de recomendaciones) ----------
   private activityFactor(a: ActivityLevel): number {
     switch (a) {
