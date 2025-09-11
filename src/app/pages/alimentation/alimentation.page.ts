@@ -21,48 +21,14 @@ type MealLog = {
   logged_at: string; // ISO
 };
 
+type AnalysisItem = { name: string; qty: number; unit?: string; kcal: number };
 type Analysis = {
   kcal: number;
   protein_g: number;
   carbs_g: number;
   fat_g: number;
-  items: Array<{ name: string; qty: number; unit?: string; kcal: number }>;
+  items: AnalysisItem[];
 };
-
-async function analyzeWithNutritionix(query: string): Promise<Analysis> {
-  const appId  = environment.nutritionixAppId;
-  const appKey = environment.nutritionixAppKey;
-
-  const r = await fetch('https://trackapi.nutritionix.com/v2/natural/nutrients', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-app-id': appId,
-      'x-app-key': appKey,
-    },
-    body: JSON.stringify({ query }),
-  });
-  if (!r.ok) throw new Error('No se pudo analizar el texto (Nutritionix).');
-  const data = await r.json();
-
-  const items = (data?.foods ?? []).map((f: any) => ({
-    name: f.food_name,
-    qty: f.serving_qty,
-    unit: f.serving_unit,
-    kcal: Number(f.nf_calories) || 0,
-  }));
-
-  const sum = (k: string) =>
-    (data?.foods ?? []).reduce((acc: number, f: any) => acc + (Number(f[k]) || 0), 0);
-
-  return {
-    kcal: +sum('nf_calories').toFixed(0),
-    protein_g: +sum('nf_protein').toFixed(1),
-    carbs_g: +sum('nf_total_carbohydrate').toFixed(1),
-    fat_g: +sum('nf_total_fat').toFixed(1),
-    items,
-  };
-}
 
 @Component({
   standalone: true,
@@ -155,13 +121,18 @@ export default class AlimentationPage {
   private endOfToday()   { const d = this.startOfToday(); d.setDate(d.getDate()+1); return d; }
 
   async loadToday() {
-    const { data } = await this.supabase.client
+    const { data, error } = await this.supabase.client
       .from('meal_logs')
       .select('id, description, calories, protein_g, carbs_g, fat_g, meal_type, logged_at')
       .eq('user_id', this.uid())
       .gte('logged_at', this.startOfToday().toISOString())
       .lt('logged_at', this.endOfToday().toISOString())
       .order('logged_at', { ascending: false });
+
+    if (error) {
+      this.err.set(error.message ?? 'No se pudo cargar el listado.');
+      return;
+    }
 
     this.todayLogs.set((data ?? []).map((r: any) => ({
       id: String(r.id),
@@ -173,7 +144,86 @@ export default class AlimentationPage {
     })));
   }
 
-  // ---- API: analizar texto ----
+  // ---- Helpers de error ----
+  private stringifyBody(body: any): string | null {
+    try {
+      if (body == null) return null;
+      if (typeof body === 'string') return body;
+      const txt = JSON.stringify(body);
+      return txt && txt !== '{}' ? txt : null;
+    } catch { return null; }
+  }
+
+  private formatInvokeError(error: any, data: any): string {
+    const status: number | undefined = error?.context?.status ?? error?.status;
+    const bodyTxt = this.stringifyBody(error?.context?.body ?? data);
+    let msg = `No se pudo analizar el texto (Open Food Facts).`;
+    if (typeof status === 'number') msg += ` status=${status}`;
+    if (error?.message) msg += ` – ${error.message}`;
+    if (bodyTxt) msg += ` – ${bodyTxt}`;
+    return msg;
+  }
+
+  // ---- API: analizar texto (Edge Function off-analyze) ----
+  private async analyzeWithOFF(query: string): Promise<Analysis> {
+    // 1) Llamada estándar via SDK (debería bastar)
+    const { data, error } = await this.supabase.client.functions.invoke('off-analyze', {
+      body: { query },
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (error) {
+      // 2) Fallback DIAGNÓSTICO: llamada directa para capturar el body real del error
+      try {
+        const url = `${environment.supabaseUrl}/functions/v1/off-analyze`;
+        const r = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // apikey + Authorization con el anon Key (público)
+            'apikey': environment.supabaseAnonKey,
+            'Authorization': `Bearer ${environment.supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!r.ok) {
+          const txt = await r.text().catch(() => '');
+          // Armamos un mensaje con el status real y el detalle del backend
+          const detail = txt || (error?.context?.body ? JSON.stringify(error.context.body) : '');
+          throw new Error(`No se pudo analizar el texto (Open Food Facts). status=${r.status} – ${detail || error?.message || 'Error'}`);
+        }
+
+        // Si el fallback directo respondió 200, usamos ese JSON como data
+        const payload = await r.json();
+        return {
+          kcal: Number(payload?.kcal) || 0,
+          protein_g: Number(payload?.protein_g) || 0,
+          carbs_g: Number(payload?.carbs_g) || 0,
+          fat_g: Number(payload?.fat_g) || 0,
+          items: (payload?.items ?? []).map((f: any) => ({
+            name: f.name, qty: Number(f.qty) || 0, unit: f.unit || undefined, kcal: Number(f.kcal) || 0,
+          })),
+        };
+      } catch (e: any) {
+        // Si también falla, mostramos un mensaje enriquecido
+        throw new Error(this.formatInvokeError(error, data) + (e?.message ? ` | ${e.message}` : ''));
+      }
+    }
+
+    // OK vía SDK
+    const payload: any = data;
+    return {
+      kcal: Number(payload?.kcal) || 0,
+      protein_g: Number(payload?.protein_g) || 0,
+      carbs_g: Number(payload?.carbs_g) || 0,
+      fat_g: Number(payload?.fat_g) || 0,
+      items: (payload?.items ?? []).map((f: any) => ({
+        name: f.name, qty: Number(f.qty) || 0, unit: f.unit || undefined, kcal: Number(f.kcal) || 0,
+      })),
+    };
+  }
+
   async analyze() {
     this.analysis.set(null);
     this.analysisErr.set(null);
@@ -182,7 +232,7 @@ export default class AlimentationPage {
 
     try {
       this.analyzing.set(true);
-      const a = await analyzeWithNutritionix(q);
+      const a = await this.analyzeWithOFF(q);
       this.analysis.set(a);
     } catch (e: any) {
       this.analysisErr.set(e?.message ?? 'No se pudo analizar el alimento.');
@@ -249,8 +299,9 @@ export default class AlimentationPage {
     this.text.set(''); this.analysis.set(null);
   }
 
-  /** Abre un prompt para ingresar kcal (evitamos usar prompt en el template) */
+  /** Prompt seguro (solo en cliente) para ingresar kcal manualmente */
   openManualPrompt() {
+    if (typeof window === 'undefined') return; // SSR safe
     const raw = window.prompt('Ingresa kcal (estimado):', '300');
     const v = Number(raw ?? 0);
     if (!Number.isFinite(v) || v <= 0) return;
@@ -275,15 +326,8 @@ export default class AlimentationPage {
           : 'Snack';
   }
 
-  /** Listado por grupo para usar directo en *ngFor */
-  groupList(k: MealType) {
-    return this.grouped()[k];
-  }
-
-  /** Total de kcal por grupo para el resumen */
-  totalFor(k: MealType) {
-    return this.groupList(k).reduce((s, x) => s + (x.calories || 0), 0);
-  }
+  groupList(k: MealType) { return this.grouped()[k]; }
+  totalFor(k: MealType)  { return this.groupList(k).reduce((s, x) => s + (x.calories || 0), 0); }
 
   fmtTime(iso: string) {
     return new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });

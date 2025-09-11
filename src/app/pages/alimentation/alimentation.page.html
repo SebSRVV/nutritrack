@@ -3,7 +3,7 @@
   <!-- Header -->
   <header class="ali-header container">
     <a class="brand" routerLink="/" aria-label="Inicio NutriTrack">
-     <strong>NutriTrack</strong>
+      <strong>NutriTrack</strong>
     </a>
     <nav class="actions">
       <a routerLink="/dashboard" class="btn">Dashboard</a>
@@ -42,7 +42,8 @@
 
       <div class="row-actions">
         <button class="btn" (click)="analyze()" [disabled]="analyzing() || !text().trim()">
-          <lucide-icon [img]="PlusIcon"></lucide-icon> Analizar con API
+          <lucide-icon [img]="PlusIcon"></lucide-icon>
+          {{ analyzing() ? 'Analizando…' : 'Analizar con API' }}
         </button>
         <button class="btn ghost" (click)="openManualPrompt()" [disabled]="!text().trim()">
           Agregar manual
