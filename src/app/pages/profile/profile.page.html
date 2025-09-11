@@ -191,24 +191,37 @@
 
   <!-- Modal eliminar cuenta -->
   <div class="modal-backdrop" *ngIf="showDeleteModal()" (click)="closeDeleteModal()"></div>
-  <div class="modal" *ngIf="showDeleteModal()">
+
+  <div class="modal" *ngIf="showDeleteModal()" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" aria-describedby="deleteDesc">
     <div>
       <div class="modal-header">
         <lucide-icon [img]="ShieldAlertIcon"></lucide-icon>
-        <strong>Eliminar cuenta</strong>
+        <strong id="deleteTitle">Eliminar cuenta</strong>
+        <span class="modal-badge">Acción permanente</span>
       </div>
-      <p>Esta acción es permanente e irreversible. Escribe <b>eliminar</b> para confirmar.</p>
-      <input class="confirm-input" type="text" placeholder="eliminar"
+
+      <p id="deleteDesc">
+        Esta acción es permanente e irreversible. Escribe <b>eliminar</b> para confirmar.
+      </p>
+
+      <input class="confirm-input"
+             [class.valid]="confirmText().toLowerCase()==='eliminar'"
+             [class.invalid]="confirmText().length>0 && confirmText().toLowerCase()!=='eliminar'"
+             type="text" placeholder="eliminar"
              [value]="confirmText()"
              (input)="confirmText.set($any($event.target).value)">
+
       <div class="modal-actions">
-        <button class="btn" (click)="closeDeleteModal()">Cancelar</button>
-        <button class="btn danger"
-                [disabled]="confirmText().toLowerCase() !== 'eliminar' || deleting()"
-                (click)="deleteAccount()">
-          <lucide-icon [img]="Trash2Icon"></lucide-icon>
-          {{ deleting() ? 'Eliminando…' : 'Eliminar' }}
-        </button>
+        <span class="modal-hint">Se cerrará tu sesión al confirmar.</span>
+        <div>
+          <button class="btn cancel" (click)="closeDeleteModal()">Cancelar</button>
+          <button class="btn danger"
+                  [disabled]="confirmText().toLowerCase() !== 'eliminar' || deleting()"
+                  (click)="deleteAccount()">
+            <lucide-icon [img]="Trash2Icon"></lucide-icon>
+            {{ deleting() ? 'Eliminando…' : 'Eliminar' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

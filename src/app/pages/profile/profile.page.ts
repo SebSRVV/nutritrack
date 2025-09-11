@@ -268,3 +268,4 @@ export default class ProfilePage {
     this.router.navigateByUrl('/login');
   }
 }
+

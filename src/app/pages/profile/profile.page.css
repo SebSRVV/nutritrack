@@ -140,9 +140,171 @@
 .loading{ padding:3rem 0; color:#cbd5e1; text-align:center; }
 
 /* Modal */
-.modal-backdrop{ position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(2px); z-index: 40; }
-.modal{ position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 1rem; }
-.modal > div{ width: min(520px, 92vw); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 1rem; }
-.modal-header{ display: flex; align-items: center; gap: .6rem; margin-bottom: .6rem; font-size: 1.1rem; font-weight: 900; }
-.confirm-input{ width: 100%; margin: .6rem 0 1rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); color: #e6edf6; border-radius: 12px; padding: .65rem .8rem; font: inherit; }
-.modal-actions{ display:flex; justify-content:flex-end; gap:.6rem; }
+/* === Modal mejorado === */
+.modal-backdrop{
+  position: fixed; inset: 0;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(8,12,22,.55), rgba(0,0,0,.65));
+  backdrop-filter: blur(6px) saturate(120%);
+  z-index: 40;
+  opacity: 0; animation: fadeIn .25s ease-out forwards;
+}
+
+.modal{
+  position: fixed; z-index: 50; inset: 0;
+  display: grid; place-items: center; padding: 1rem;
+}
+
+.modal > div{
+  width: min(520px, 92vw);
+  padding: 1rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.14);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)),
+    radial-gradient(120% 140% at 0% 0%, rgba(248,113,113,.08), transparent 55%),
+    radial-gradient(120% 140% at 100% 0%, rgba(34,211,238,.08), transparent 55%);
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  transform: translateY(8px) scale(.98);
+  opacity: 0;
+  animation: popIn .28s cubic-bezier(.16,1,.3,1) .05s forwards;
+}
+
+/* Cabecera con franja de peligro */
+.modal-header{
+  display: flex; align-items: center; gap: .6rem;
+  margin: -.25rem -.25rem .75rem;
+  padding: .6rem .75rem;
+  font-size: 1.05rem; font-weight: 900;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg,#fca5a5,#ef4444);
+  color: #061018;
+  border: 1px solid rgba(239,68,68,.35);
+  box-shadow: 0 8px 24px rgba(239,68,68,.25);
+}
+
+/* Texto de apoyo */
+.modal > div{
+  width: min(520px, 92vw);
+  padding: 1.2rem 1.4rem;
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,.25);
+  background: #111827; /* sólido oscuro */
+  box-shadow:
+    0 20px 60px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  transform: translateY(8px) scale(.98);
+  opacity: 0;
+  animation: popIn .28s cubic-bezier(.16,1,.3,1) .05s forwards;
+}
+
+/* Input de confirmación */
+.confirm-input{
+  width: 100%;
+  margin: .6rem 0 1rem;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  color: #e6edf6;
+  border-radius: 12px;
+  padding: .7rem .85rem;
+  font: inherit;
+  outline: none;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.confirm-input:focus{
+  border-color: rgba(34,211,238,.55);
+  box-shadow: 0 0 0 3px rgba(34,211,238,.20);
+  background: rgba(255,255,255,.08);
+}
+/* Estado válido cuando el user escribe "eliminar" */
+.confirm-input.valid{
+  border-color: rgba(52,211,153,.55);
+  box-shadow: 0 0 0 3px rgba(52,211,153,.22);
+}
+/* Estado inválido breve (shake) */
+.confirm-input.invalid{
+  animation: shake .3s ease;
+  border-color: rgba(248,113,113,.65);
+}
+
+/* Área de acciones */
+.modal-actions{
+  display: flex; justify-content: space-between; align-items: center; gap: .8rem;
+  border-top: 1px dashed rgba(255,255,255,.14);
+  padding-top: .8rem; margin-top: .6rem;
+}
+.modal-hint{
+  font-size: .86rem; color: #9fb0c7;
+}
+
+/* Botón de peligro con glow al enabled */
+.btn.danger{
+  background: linear-gradient(180deg,#f87171,#dc2626);
+  color:#061018; box-shadow: 0 10px 30px rgba(248,113,113,.25);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.btn.danger:not([disabled]):hover{ filter: brightness(1.06); transform: translateY(-1px); }
+.btn.danger:not([disabled]):active{ transform: translateY(0); box-shadow: 0 6px 18px rgba(248,113,113,.22); }
+
+/* Tooltip/chip dentro de header opcional */
+.modal-badge{
+  margin-left: auto;
+  font-size: .75rem; font-weight: 800;
+  padding: .18rem .5rem; border-radius: 999px;
+  background: rgba(255,255,255,.85);
+  color: #111827; border: 1px solid rgba(255,255,255,.9);
+}
+
+/* Animaciones */
+@keyframes popIn{
+  to{ opacity:1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeIn{
+  to{ opacity:1; }
+}
+@keyframes shake{
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+/* Accesibilidad: respeto a reduce motion */
+@media (prefers-reduced-motion: reduce){
+  .modal-backdrop, .modal > div{ animation: none !important; opacity: 1; transform: none; }
+}
+
+/* Botón cancelar: estilo neutral más visible */
+.btn.cancel {
+  background: linear-gradient(180deg,#334155,#1e293b); /* azul grisáceo */
+  color: #e2e8f0;
+  border: 1px solid rgba(148,163,184,.4);
+  transition: background .15s ease, transform .12s ease;
+}
+.btn.cancel:hover {
+  background: linear-gradient(180deg,#475569,#334155);
+  transform: translateY(-1px);
+}
+.btn.cancel:active {
+  transform: translateY(0);
+}
+
+/* Botón eliminar: hover más intenso */
+.btn.danger {
+  background: linear-gradient(180deg,#f87171,#dc2626);
+  color:#061018;
+  box-shadow: 0 10px 30px rgba(248,113,113,.25);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.btn.danger:not([disabled]):hover {
+  background: linear-gradient(180deg,#fb6b6b,#ef4444); /* rojo más brillante */
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(248,113,113,.35);
+}
+.btn.danger:not([disabled]):active {
+  transform: translateY(0);
+  box-shadow: 0 6px 18px rgba(248,113,113,.22);
+}
