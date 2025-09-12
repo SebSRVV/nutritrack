@@ -20,6 +20,7 @@
         <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon> Registro de alimentación
       </h2>
 
+      <!-- Tabs tipo comida -->
       <div class="meal-tabs" role="tablist" aria-label="Tipo de comida">
         <button class="tab" [class.sel]="mealType()==='breakfast'" (click)="mealType.set('breakfast')">
           <lucide-icon [img]="AppleIcon"></lucide-icon> Desayuno
@@ -35,33 +36,62 @@
         </button>
       </div>
 
+      <!-- Texto -->
       <label class="lbl">Describe tu comida (p.ej. "2 huevos, 1 taza de arroz, 1 manzana")</label>
       <textarea rows="3" class="food-input"
                 [value]="text()"
-                (input)="text.set($any($event.target).value)"></textarea>
+                (input)="text.set($any($event.target).value)"
+                placeholder="Puedes usar texto…"></textarea>
+
+      <!-- Uploader -->
+      <div class="uploader" aria-label="Subir imagen de comida">
+        <div class="row">
+          <label class="lbl" style="margin:0">…o sube una imagen</label>
+          <input type="file" accept="image/*" (change)="onFile($event)" [disabled]="uploading()" />
+          <button class="btn ghost" (click)="removeImage()" *ngIf="imgPath()" [disabled]="uploading()">Quitar imagen</button>
+        </div>
+
+        <div class="preview" *ngIf="imgPublicUrl()">
+          <img [src]="imgPublicUrl()!" alt="Vista previa" />
+          <div>
+            <div style="font-weight:800">Imagen lista para analizar</div>
+            <div style="color:#b9c4d7; font-weight:700">{{ imgPath() }}</div>
+          </div>
+        </div>
+      </div>
 
       <div class="row-actions">
-        <button class="btn" (click)="analyze()" [disabled]="analyzing() || !text().trim()">
+        <button class="btn" (click)="analyze()" [disabled]="analyzing() || !(text().trim() || imgPublicUrl())">
           <lucide-icon [img]="PlusIcon"></lucide-icon>
-          {{ analyzing() ? 'Analizando…' : 'Analizar con API' }}
+          {{ analyzing() ? 'Analizando…' : 'Analizar con IA' }}
         </button>
-        <button class="btn ghost" (click)="openManualPrompt()" [disabled]="!text().trim()">
+        <button class="btn ghost" (click)="openManualPrompt()" [disabled]="!(text().trim())">
           Agregar manual
         </button>
       </div>
 
+      <!-- Resultado análisis -->
       <div class="analysis" *ngIf="analysis()">
         <div class="kcal">
           <lucide-icon [img]="FlameIcon"></lucide-icon>
           <b>{{ analysis()!.kcal }}</b> kcal
           <span class="muted">• {{ analysis()!.protein_g }} g prot • {{ analysis()!.carbs_g }} g carb • {{ analysis()!.fat_g }} g grasa</span>
         </div>
+
+        <div class="chips" *ngIf="analysis()!.meal_categories?.length">
+          <span class="chip" *ngFor="let c of analysis()!.meal_categories">{{ c }}</span>
+        </div>
+
         <ul class="items">
           <li *ngFor="let it of analysis()!.items">
-            <span>{{ it.qty }} {{ it.unit || '' }} {{ it.name }}</span>
+            <span>
+              {{ it.qty }} {{ it.unit || '' }} {{ it.name }}
+              <small style="color:#b9c4d7; font-weight:700" *ngIf="it.categories?.length"> – {{ it.categories.join(', ') }}</small>
+            </span>
             <b>{{ it.kcal }} kcal</b>
           </li>
         </ul>
+
         <div class="row-actions">
           <button class="btn" (click)="addFromAnalysis()">Guardar (+{{ analysis()!.kcal }} kcal)</button>
         </div>

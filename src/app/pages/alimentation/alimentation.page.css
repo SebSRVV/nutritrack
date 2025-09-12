@@ -17,6 +17,7 @@
 .btn{ padding:.55rem .9rem; border-radius:12px; text-decoration:none; color:#e6edf6; border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); }
 .btn.ghost{ background: linear-gradient(180deg, rgba(167,139,250,.18), rgba(109,40,217,.12)); border-color: rgba(167,139,250,.35); }
 .btn:hover{ filter: brightness(1.06); transform: translateY(-1px); }
+.btn[disabled]{ opacity:.6; cursor:not-allowed; }
 
 /* Layout */
 .grid{ display:grid; gap:1rem; grid-template-columns: minmax(420px,1fr) minmax(520px,1fr); align-items:start; }
@@ -39,7 +40,7 @@
   border-radius:12px; border:1px solid rgba(255,255,255,.22);
   background: rgba(255,255,255,.06); color:#e6edf6; padding:.7rem .8rem; font:inherit;
 }
-.row-actions{ display:flex; gap:.5rem; margin-top:.6rem; }
+.row-actions{ display:flex; gap:.5rem; margin-top:.6rem; flex-wrap:wrap; }
 .row-actions .btn{ font-weight:800; border-radius:12px; }
 
 /* Tabs tipo comida */
@@ -51,6 +52,21 @@
 }
 .tab.sel{ background: linear-gradient(180deg,#22d3ee,#0ea5b7); color:#061018; }
 
+/* Subida de imagen */
+.uploader{
+  border:1px dashed rgba(255,255,255,.25);
+  background: rgba(255,255,255,.04);
+  border-radius:12px; padding:.75rem;
+}
+.uploader .row{ display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+.uploader input[type="file"]{ display:block; }
+.preview{
+  display:flex; align-items:center; gap:.6rem; margin-top:.5rem;
+  background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  border-radius:10px; padding:.45rem .55rem;
+}
+.preview img{ width:72px; height:72px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.12); }
+
 /* Resultado análisis */
 .analysis{ margin-top:.6rem; border-top:1px solid rgba(255,255,255,.14); padding-top:.6rem; }
 .analysis .kcal{ display:flex; align-items:center; gap:.4rem; font-weight:900; }
@@ -60,6 +76,14 @@
   display:flex; justify-content:space-between; gap:.6rem; padding:.45rem .6rem;
   background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
   border-radius:10px;
+}
+
+/* Chips categorías */
+.chips{ display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.35rem; }
+.chip{
+  display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .5rem;
+  border-radius:999px; border:1px solid rgba(255,255,255,.18);
+  background: rgba(255,255,255,.06); color:#e6edf6; font-weight:800; font-size:.85rem;
 }
 
 /* Overview */

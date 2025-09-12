@@ -9,6 +9,10 @@ import { SupabaseService } from '../../core/supabase.service';
 import { environment } from '../../../environments/environment';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+type MealCategory =
+  | 'frutas' | 'vegetales' | 'proteínas' | 'cereales'
+  | 'lácteos' | 'grasas' | 'legumbres' | 'ultraprocesados'
+  | 'bebidas' | 'otros';
 
 type MealLog = {
   id: string;
@@ -19,14 +23,18 @@ type MealLog = {
   fat_g: number | null;
   meal_type: MealType;
   logged_at: string; // ISO
+  meal_categories?: MealCategory[] | null; // opcional si agregas columna
+  ai_items?: any | null;                   // opcional si agregas columna
 };
 
-type AnalysisItem = { name: string; qty: number; unit?: string; kcal: number };
+type AnalysisItem = { name: string; qty: number; unit?: string; kcal: number; categories: MealCategory[] };
 type Analysis = {
   kcal: number;
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  meal_type: MealType;
+  meal_categories: MealCategory[];
   items: AnalysisItem[];
 };
 
@@ -64,6 +72,11 @@ export default class AlimentationPage {
   analyzing = signal(false);
   analysis = signal<Analysis | null>(null);
   analysisErr = signal<string | null>(null);
+
+  // Imagen
+  uploading = signal(false);
+  imgPath = signal<string | null>(null);        // ruta en Storage
+  imgPublicUrl = signal<string | null>(null);   // URL pública para OpenAI
 
   // Hoy
   todayLogs = signal<MealLog[]>([]);
@@ -123,7 +136,7 @@ export default class AlimentationPage {
   async loadToday() {
     const { data, error } = await this.supabase.client
       .from('meal_logs')
-      .select('id, description, calories, protein_g, carbs_g, fat_g, meal_type, logged_at')
+      .select('id, description, calories, protein_g, carbs_g, fat_g, meal_type, logged_at, meal_categories, ai_items')
       .eq('user_id', this.uid())
       .gte('logged_at', this.startOfToday().toISOString())
       .lt('logged_at', this.endOfToday().toISOString())
@@ -141,6 +154,8 @@ export default class AlimentationPage {
       protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g,
       meal_type: r.meal_type as MealType,
       logged_at: r.logged_at,
+      meal_categories: r.meal_categories ?? null,
+      ai_items: r.ai_items ?? null,
     })));
   }
 
@@ -157,69 +172,95 @@ export default class AlimentationPage {
   private formatInvokeError(error: any, data: any): string {
     const status: number | undefined = error?.context?.status ?? error?.status;
     const bodyTxt = this.stringifyBody(error?.context?.body ?? data);
-    let msg = `No se pudo analizar el texto (Open Food Facts).`;
+    let msg = `No se pudo analizar el texto/imagen (ai-analyze).`;
     if (typeof status === 'number') msg += ` status=${status}`;
     if (error?.message) msg += ` – ${error.message}`;
     if (bodyTxt) msg += ` – ${bodyTxt}`;
     return msg;
   }
 
-  // ---- API: analizar texto (Edge Function off-analyze) ----
-  private async analyzeWithOFF(query: string): Promise<Analysis> {
-    // 1) Llamada estándar via SDK (debería bastar)
-    const { data, error } = await this.supabase.client.functions.invoke('off-analyze', {
-      body: { query },
+  // --------- Storage helpers ---------
+  private getPublicUrl(path: string) {
+    const { data } = this.supabase.client.storage.from('meal_uploads').getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async onFile(ev: Event) {
+    const f = (ev.target as HTMLInputElement).files?.[0];
+    if (!f) return;
+    if (!this.uid()) { this.analysisErr.set('Sesión no válida'); return; }
+    this.uploading.set(true);
+    this.analysisErr.set(null);
+
+    try {
+      const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+      const filePath = `u_${this.uid()}/${Date.now()}.${ext}`;
+      const { error } = await this.supabase.client.storage.from('meal_uploads')
+        .upload(filePath, f, { upsert: true, contentType: f.type || 'image/*' });
+      if (error) throw error;
+      this.imgPath.set(filePath);
+      this.imgPublicUrl.set(this.getPublicUrl(filePath));
+    } catch (e: any) {
+      this.analysisErr.set(e?.message ?? 'No se pudo subir la imagen.');
+    } finally {
+      this.uploading.set(false);
+    }
+  }
+
+  removeImage() {
+    this.imgPath.set(null);
+    this.imgPublicUrl.set(null);
+    // No borramos del storage para permitir auditoría; si quieres, puedes llamar a remove().
+  }
+
+  // ---- API: analizar (Edge Function ai-analyze) ----
+  private async analyzeWithAI(payload: { query?: string; image_url?: string; hint?: MealType }): Promise<Analysis> {
+    const body = payload.image_url
+      ? { mode: 'image', image_url: payload.image_url, hint_meal_type: payload.hint }
+      : { mode: 'text',  query: payload.query ?? '',   hint_meal_type: payload.hint };
+
+    const { data, error } = await this.supabase.client.functions.invoke('ai-analyze', {
+      body,
       headers: { 'Content-Type': 'application/json' },
     });
 
     if (error) {
-      // 2) Fallback DIAGNÓSTICO: llamada directa para capturar el body real del error
+      // Hacemos un intento de diagnóstico extra con fetch directo al endpoint público (opcional)
       try {
-        const url = `${environment.supabaseUrl}/functions/v1/off-analyze`;
+        const url = `${environment.supabaseUrl}/functions/v1/ai-analyze`;
         const r = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // apikey + Authorization con el anon Key (público)
-            'apikey': environment.supabaseAnonKey,
-            'Authorization': `Bearer ${environment.supabaseAnonKey}`,
-          },
-          body: JSON.stringify({ query }),
+          headers: { 'Content-Type': 'application/json', 'apikey': environment.supabaseAnonKey, 'Authorization': `Bearer ${environment.supabaseAnonKey}` },
+          body: JSON.stringify(body),
         });
-
         if (!r.ok) {
           const txt = await r.text().catch(() => '');
-          // Armamos un mensaje con el status real y el detalle del backend
-          const detail = txt || (error?.context?.body ? JSON.stringify(error.context.body) : '');
-          throw new Error(`No se pudo analizar el texto (Open Food Facts). status=${r.status} – ${detail || error?.message || 'Error'}`);
+          throw new Error(`No se pudo analizar. status=${r.status} ${txt || ''}`);
         }
-
-        // Si el fallback directo respondió 200, usamos ese JSON como data
         const payload = await r.json();
-        return {
-          kcal: Number(payload?.kcal) || 0,
-          protein_g: Number(payload?.protein_g) || 0,
-          carbs_g: Number(payload?.carbs_g) || 0,
-          fat_g: Number(payload?.fat_g) || 0,
-          items: (payload?.items ?? []).map((f: any) => ({
-            name: f.name, qty: Number(f.qty) || 0, unit: f.unit || undefined, kcal: Number(f.kcal) || 0,
-          })),
-        };
+        return this.normalizeAnalysis(payload);
       } catch (e: any) {
-        // Si también falla, mostramos un mensaje enriquecido
         throw new Error(this.formatInvokeError(error, data) + (e?.message ? ` | ${e.message}` : ''));
       }
     }
 
-    // OK vía SDK
-    const payload: any = data;
+    return this.normalizeAnalysis(data);
+  }
+
+  private normalizeAnalysis(a: any): Analysis {
     return {
-      kcal: Number(payload?.kcal) || 0,
-      protein_g: Number(payload?.protein_g) || 0,
-      carbs_g: Number(payload?.carbs_g) || 0,
-      fat_g: Number(payload?.fat_g) || 0,
-      items: (payload?.items ?? []).map((f: any) => ({
-        name: f.name, qty: Number(f.qty) || 0, unit: f.unit || undefined, kcal: Number(f.kcal) || 0,
+      kcal: Number(a?.kcal) || 0,
+      protein_g: Number(a?.protein_g) || 0,
+      carbs_g: Number(a?.carbs_g) || 0,
+      fat_g: Number(a?.fat_g) || 0,
+      meal_type: (a?.meal_type ?? this.mealType()) as MealType,
+      meal_categories: Array.isArray(a?.meal_categories) ? a.meal_categories : [],
+      items: (a?.items ?? []).map((f: any) => ({
+        name: String(f.name || ''),
+        qty: Number(f.qty) || 0,
+        unit: f.unit || undefined,
+        kcal: Number(f.kcal) || 0,
+        categories: Array.isArray(f.categories) ? f.categories : [],
       })),
     };
   }
@@ -228,14 +269,24 @@ export default class AlimentationPage {
     this.analysis.set(null);
     this.analysisErr.set(null);
     const q = this.text().trim();
-    if (!q) return;
+    const img = this.imgPublicUrl();
+
+    if (!q && !img) return;
 
     try {
       this.analyzing.set(true);
-      const a = await this.analyzeWithOFF(q);
+      const a = await this.analyzeWithAI({
+        query: q || undefined,
+        image_url: img || undefined,
+        hint: this.mealType(),
+      });
+
+      // Si quieres forzar el tipo a la pestaña seleccionada:
+      a.meal_type = this.mealType();
+
       this.analysis.set(a);
     } catch (e: any) {
-      this.analysisErr.set(e?.message ?? 'No se pudo analizar el alimento.');
+      this.analysisErr.set(e?.message ?? 'No se pudo analizar.');
     } finally {
       this.analyzing.set(false);
     }
@@ -246,6 +297,8 @@ export default class AlimentationPage {
     description: string; calories: number;
     protein_g: number | null; carbs_g: number | null; fat_g: number | null;
     meal_type: MealType;
+    meal_categories?: MealCategory[] | null;
+    ai_items?: any | null;
   }) {
     const uid = this.uid(); if (!uid) return;
 
@@ -257,6 +310,8 @@ export default class AlimentationPage {
       protein_g: payload.protein_g, carbs_g: payload.carbs_g, fat_g: payload.fat_g,
       meal_type: payload.meal_type,
       logged_at: new Date().toISOString(),
+      meal_categories: payload.meal_categories ?? null,
+      ai_items: payload.ai_items ?? null,
     };
     this.todayLogs.set([optimistic, ...this.todayLogs()]);
 
@@ -281,16 +336,19 @@ export default class AlimentationPage {
   async addFromAnalysis() {
     const a = this.analysis(); if (!a) return;
     await this.addLog({
-      description: this.text().trim(),
+      description: this.text().trim() || (this.imgPath() ? `Imagen: ${this.imgPath()}` : 'Registro'),
       calories: a.kcal, protein_g: a.protein_g, carbs_g: a.carbs_g, fat_g: a.fat_g,
       meal_type: this.mealType(),
+      meal_categories: a.meal_categories,
+      ai_items: a.items,
     });
-    this.text.set(''); this.analysis.set(null);
+    // limpiar inputs
+    this.text.set(''); this.analysis.set(null); this.removeImage();
   }
 
   async addManual(calories: number) {
     calories = Math.max(0, Math.round(calories));
-    if (!calories || !this.text().trim()) return;
+    if (!calories || !(this.text().trim())) return;
     await this.addLog({
       description: this.text().trim(),
       calories, protein_g: null, carbs_g: null, fat_g: null,
