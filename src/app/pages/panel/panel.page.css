@@ -1,6 +1,7 @@
 :host{ display: contents; }
 .container{ width:min(1180px,92vw); margin-inline:auto; }
 
+/* ——— Base ——— */
 .panel-root{
   color:#e8eef8;
   --muted:#b9c4d7; --brand1:#22d3ee; --brand2:#06b6d4;
@@ -26,11 +27,8 @@
 }
 .date-pick input{ background:transparent; border:0; color:#e8eef8; font:inherit; outline:none; }
 
-/* Grid */
-.grid{
-  display:grid; gap:1rem;
-  grid-template-columns: repeat(12, 1fr);
-}
+/* Grid + Cards */
+.grid{ display:grid; gap:1rem; grid-template-columns: repeat(12, 1fr); }
 .card{
   background: var(--card-bg);
   border:1px solid var(--card-bd);
@@ -101,6 +99,11 @@
 .right{ text-align:right; }
 .empty{ color:var(--muted); text-align:center; padding:.5rem; }
 
-/* Misc */
+/* Loader + errores */
 .err.center{ text-align:center; margin-top:1rem; }
 .loading{ padding:3rem 0; text-align:center; color:var(--muted); }
+
+/* ——— Chart containers (clave para que se vean) ——— */
+.chartbox{ position:relative; width:100%; }
+.chartbox canvas{ position:absolute; inset:0; width:100% !important; height:100% !important; }
+.h200{ height:200px; } .h220{ height:220px; } .h280{ height:280px; }
