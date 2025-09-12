@@ -1,72 +1,108 @@
 <section class="panel-root" *ngIf="!loading(); else skel">
   <header class="panel-header container">
-    <a routerLink="/dashboard" class="btn back">
-      <lucide-icon [img]="ChevronLeftIcon"></lucide-icon> Dashboard
-    </a>
-    <h1><lucide-icon [img]="BarChart3Icon"></lucide-icon> Panel de alimentación</h1>
-    <div></div>
+    <a class="brand" routerLink="/" aria-label="Inicio NutriTrack"><strong>NutriTrack</strong></a>
+    <nav class="actions">
+      <label class="date-pick">
+        <lucide-icon [img]="CalendarIcon"></lucide-icon>
+        <input type="date" [value]="selectedDate()" (change)="onDateChange($any($event.target).value)" />
+      </label>
+      <a routerLink="/profile" class="btn ghost">
+        <lucide-icon [img]="SettingsIcon"></lucide-icon> Configuraciones
+      </a>
+    </nav>
   </header>
 
   <div class="container grid">
+    <!-- OVERVIEW -->
+    <section class="card overview">
+      <h2 class="title"><lucide-icon [img]="FlameIcon"></lucide-icon> Resumen del día</h2>
 
-    <!-- Resumen hoy -->
-    <section class="card today">
-      <div class="head">
-        <div class="title">
-          <lucide-icon [img]="FlameIcon"></lucide-icon>
-          Hoy
+      <div class="meter" role="progressbar"
+           [attr.aria-valuemin]="0" [attr.aria-valuemax]="recKcal()" [attr.aria-valuenow]="totalKcal()">
+        <div class="bar" [style.width.%]="pct()"></div>
+        <div class="value">{{ totalKcal() }} / {{ recKcal() }} kcal</div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="k">Proteína</div>
+          <div class="v">{{ macros().protein_g }} g</div>
         </div>
-        <div class="kcal">{{ todayKcal | number:'1.0-0' }} <span>kcal</span></div>
-      </div>
-
-      <div class="mini-cards">
-        <div class="mini"><div class="k">Proteína</div><div class="v">{{ todayProt | number:'1.0-1' }} g</div></div>
-        <div class="mini"><div class="k">Carbohidratos</div><div class="v">{{ todayCarb | number:'1.0-1' }} g</div></div>
-        <div class="mini"><div class="k">Grasas</div><div class="v">{{ todayFat  | number:'1.0-1' }} g</div></div>
-      </div>
-
-      <div class="donut-wrap">
-        <div class="canvas-wrap">
-          <canvas #todayDonut aria-label="Distribución de macros hoy" role="img"></canvas>
+        <div class="kpi">
+          <div class="k">Carbos</div>
+          <div class="v">{{ macros().carbs_g }} g</div>
+        </div>
+        <div class="kpi">
+          <div class="k">Grasa</div>
+          <div class="v">{{ macros().fat_g }} g</div>
         </div>
       </div>
-
-      <p class="hint"><lucide-icon [img]="ClockIcon"></lucide-icon> Datos de hoy (00:00–23:59)</p>
     </section>
 
-    <!-- Línea calorías -->
-    <section class="card" [attr.data-empty]="kcalEmpty ? 'No hay registros en el rango.' : null">
-      <div class="card-title"><lucide-icon [img]="ActivityIcon"></lucide-icon> Calorías por día (últimos {{days}})</div>
-      <div class="canvas-wrap">
-        <canvas #caloriesLine aria-label="Calorías por día" role="img"></canvas>
+    <!-- CHARTS LEFT -->
+    <section class="card charts">
+      <h3 class="title"><lucide-icon [img]="PieChartIcon"></lucide-icon> Macronutrientes</h3>
+      <canvas #donut height="200"></canvas>
+    </section>
+
+    <section class="card charts">
+      <h3 class="title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Kcal por comida</h3>
+      <canvas #mealsBar height="220"></canvas>
+    </section>
+
+    <!-- CHARTS RIGHT -->
+    <section class="card charts full">
+      <h3 class="title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Kcal por categorías</h3>
+      <canvas #catsBar height="280"></canvas>
+    </section>
+
+    <section class="card charts full">
+      <h3 class="title"><lucide-icon [img]="LineChartIcon"></lucide-icon> Kcal por hora</h3>
+      <canvas #timeline height="220"></canvas>
+    </section>
+
+    <!-- LISTADO DEL DÍA -->
+    <section class="card list">
+      <h3 class="title">Registros del día</h3>
+      <ul class="entries">
+        <li class="entry" *ngFor="let r of logs()">
+          <div class="left">
+            <div class="desc">{{ r.description }}</div>
+            <div class="meta">
+              <span class="pill">{{ mealLabel(r.meal_type) }}</span>
+              <span class="time">{{ fmtTime(r.logged_at) }}</span>
+              <span class="pill" *ngFor="let c of (r.meal_categories || [])">{{ c }}</span>
+            </div>
+          </div>
+          <div class="kcal"><lucide-icon [img]="FlameIcon"></lucide-icon> {{ r.calories }} kcal</div>
+        </li>
+        <li class="empty" *ngIf="logs().length===0">Sin registros para este día.</li>
+      </ul>
+    </section>
+
+    <!-- ITEMS IA -->
+    <section class="card items">
+      <h3 class="title">Detalle de alimentos (IA)</h3>
+      <div class="table">
+        <div class="thead">
+          <div>Alimento</div><div>Cantidad</div><div>Categorías</div><div class="right">kcal</div>
+        </div>
+        <div class="tbody">
+          <div class="row" *ngFor="let it of aiFlatItems()">
+            <div>{{ it.name }}</div>
+            <div>{{ it.qty }} {{ it.unit || '' }}</div>
+            <div class="cats">
+              <span class="chip" *ngFor="let c of it.cats">{{ c }}</span>
+            </div>
+            <div class="right"><b>{{ it.kcal }}</b></div>
+          </div>
+          <div class="empty" *ngIf="aiFlatItems().length===0">No hay desgloses detectados por IA.</div>
+        </div>
       </div>
     </section>
-
-    <!-- Macros stacked -->
-    <section class="card" [attr.data-empty]="macroEmpty ? 'No hay registros de macros en el rango.' : null">
-      <div class="card-title"><lucide-icon [img]="ActivityIcon"></lucide-icon> Macros por día (g)</div>
-      <div class="canvas-wrap">
-        <canvas #macrosStack aria-label="Macros por día" role="img"></canvas>
-      </div>
-    </section>
-
-    <!-- Por tipo -->
-    <section class="card" [attr.data-empty]="typeEmpty ? 'Sin registros por tipo.' : null">
-      <div class="card-title"><lucide-icon [img]="PieChartIcon"></lucide-icon> Calorías por tipo de comida</div>
-      <div class="canvas-wrap">
-        <canvas #typeBars aria-label="kcal por tipo de comida" role="img"></canvas>
-      </div>
-    </section>
-
-    <!-- Top alimentos -->
-    <section class="card" [attr.data-empty]="topEmpty ? 'Aún no hay alimentos destacados.' : null">
-      <div class="card-title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Top 10 alimentos por kcal</div>
-      <div class="canvas-wrap">
-        <canvas #topFoods aria-label="Top alimentos" role="img"></canvas>
-      </div>
-    </section>
-
   </div>
+
+  <p class="err center" *ngIf="err()">{{ err() }}</p>
 </section>
 
 <ng-template #skel>

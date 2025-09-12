@@ -1,26 +1,22 @@
 import {
-  AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, ViewChild, inject, signal
+  AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, ViewChild,
+  inject, signal, computed, PLATFORM_ID, OnDestroy, OnInit
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import Chart, {
-  ChartConfiguration,
-  ChartOptions,
-  ChartType,
-  TooltipItem,
-  registerables
-} from 'chart.js/auto';
-import { SupabaseService } from '../../core/supabase.service';
 import {
   LucideAngularModule,
-  ChevronLeftIcon, BarChart3Icon, ClockIcon, FlameIcon, PieChartIcon, ActivityIcon
+  FlameIcon, PieChartIcon, BarChart3Icon, LineChartIcon, CalendarIcon, SettingsIcon
 } from 'lucide-angular';
-
-Chart.register(...registerables);
+import { SupabaseService } from '../../core/supabase.service';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+type MealCategory =
+  | 'frutas' | 'vegetales' | 'proteínas' | 'cereales'
+  | 'lácteos' | 'grasas' | 'legumbres' | 'ultraprocesados'
+  | 'bebidas' | 'otros';
 
-type MealRow = {
+type MealLog = {
   id: string;
   description: string;
   calories: number;
@@ -29,140 +25,149 @@ type MealRow = {
   fat_g: number | null;
   meal_type: MealType;
   logged_at: string; // ISO
+  meal_categories?: MealCategory[] | null;
+  ai_items?: Array<{ name: string; qty: number; unit?: string; kcal: number; categories?: MealCategory[]; }> | null;
 };
 
 @Component({
   standalone: true,
-  selector: 'nt-food-panel',
-  imports: [CommonModule, RouterLink, LucideAngularModule],
+  selector: 'nt-alimentation-panel',
   templateUrl: './panel.page.html',
   styleUrls: ['./panel.page.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CommonModule, RouterLink, LucideAngularModule],
 })
-export default class PanelPage implements AfterViewInit, OnDestroy {
+export default class AlimentationPanelPage implements OnInit, AfterViewInit, OnDestroy {
   // Icons
-  readonly ChevronLeftIcon = ChevronLeftIcon;
-  readonly BarChart3Icon = BarChart3Icon;
-  readonly ClockIcon = ClockIcon;
   readonly FlameIcon = FlameIcon;
   readonly PieChartIcon = PieChartIcon;
-  readonly ActivityIcon = ActivityIcon;
+  readonly BarChart3Icon = BarChart3Icon;
+  readonly LineChartIcon = LineChartIcon;
+  readonly CalendarIcon = CalendarIcon;
+  readonly SettingsIcon = SettingsIcon;
 
   private supabase = inject(SupabaseService);
+  private platformId = inject(PLATFORM_ID);
+  private isBrowser = isPlatformBrowser(this.platformId);
 
+  // Estado
   loading = signal(true);
   err = signal<string | null>(null);
+  uid = signal<string | null>(null);
 
-  // Rango analizado (últimos 30 días)
-  readonly days = 30;
+  // Fecha seleccionada (yyyy-MM-dd)
+  selectedDate = signal<string>(this.toInputDate(new Date()));
 
-  // Canvases
-  @ViewChild('caloriesLine') caloriesLineRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('macrosStack') macrosStackRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('todayDonut')  todayDonutRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('typeBars')    typeBarsRef!: ElementRef<HTMLCanvasElement>;
-  @ViewChild('topFoods')    topFoodsRef!: ElementRef<HTMLCanvasElement>;
+  // Objetivo kcal
+  recKcal = signal<number>(2000);
 
-  // Charts
-  private charts: Array<Chart<any, any, any>> = [];
+  // Datos del día
+  logs = signal<MealLog[]>([]);
 
-  // Datos agregados
-  private rows: MealRow[] = [];
-  today = new Date();
+  // Canvas refs
+  @ViewChild('donut') donutRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('mealsBar') mealsBarRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('catsBar') catsBarRef?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('timeline') timelineRef?: ElementRef<HTMLCanvasElement>;
 
-  // Resúmenes simples
-  todayKcal = 0;
-  todayProt = 0;
-  todayCarb = 0;
-  todayFat  = 0;
+  // Chart.js runtime
+  private Chart: any | null = null;
+  private charts: any[] = [];
 
-  // Empty states
-  kcalEmpty = true;
-  macroEmpty = true;
-  typeEmpty = true;
-  topEmpty = true;
+  // ===== Aggregations =====
+  totalKcal = computed(() => this.logs().reduce((s, x) => s + (x.calories || 0), 0));
 
-  // ---------- Helpers de estilo ----------
-  private readonly gridColor = 'rgba(231, 238, 247, 0.12)';
-  private readonly tickColor = '#c9d6ea';
-  private readonly axisTitleColor = '#c9d6ea';
+  totalByMeal = computed<Record<MealType, number>>(() => {
+    const b: Record<MealType, number> = { breakfast:0, lunch:0, dinner:0, snack:0 };
+    for (const r of this.logs()) b[r.meal_type] += r.calories || 0;
+    return b;
+  });
 
-  private baseOptions<TType extends ChartType>(yTitle?: string): ChartOptions<TType> {
-    // Usamos objeto parcial y casteamos al final para evitar que TS pida TODAS las props
-    const opts: any = {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'nearest', intersect: false },
-      plugins: {
-        legend: { labels: { color: this.tickColor } },
-        tooltip: {
-          backgroundColor: 'rgba(18,24,38,.95)',
-          borderColor: 'rgba(255,255,255,.1)',
-          borderWidth: 1,
-          titleColor: '#e6edf6',
-          bodyColor: '#dfe9fb',
-          cornerRadius: 8,
-          padding: 10
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: this.gridColor },
-          ticks: { color: this.tickColor, maxRotation: 0 }
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: this.gridColor },
-          ticks: { color: this.tickColor },
-          title: yTitle ? { display: true, text: yTitle, color: this.axisTitleColor } : undefined
+  macros = computed(() => {
+    let p = 0, c = 0, f = 0;
+    for (const r of this.logs()) {
+      p += Number(r.protein_g || 0);
+      c += Number(r.carbs_g || 0);
+      f += Number(r.fat_g || 0);
+    }
+    return { protein_g: +p.toFixed(1), carbs_g: +c.toFixed(1), fat_g: +f.toFixed(1) };
+  });
+
+  categoriesAgg = computed<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const r of this.logs()) {
+      const cats = (r.meal_categories || []);
+      const kcal = r.calories || 0;
+      if (cats.length) {
+        for (const c of cats) map[c] = (map[c] || 0) + kcal;
+      } else {
+        map['otros'] = (map['otros'] || 0) + kcal;
+      }
+      for (const it of (r.ai_items || [])) {
+        for (const c of (it.categories || [])) {
+          map[c] = (map[c] || 0) + (it.kcal || 0);
         }
       }
-    };
-    return opts as ChartOptions<TType>;
-  }
+    }
+    return map;
+  });
 
-  private dateKey(d: Date) { return d.toISOString().slice(0,10); }
-  private fmtDateShort(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-  }
+  timelineAgg = computed(() => {
+    const buckets: Record<string, number> = {};
+    for (const r of this.logs()) {
+      const d = new Date(r.logged_at);
+      const hh = d.toLocaleTimeString('es-PE', { hour: '2-digit', hour12: false });
+      buckets[hh] = (buckets[hh] || 0) + (r.calories || 0);
+    }
+    const hours = Object.keys(buckets).sort();
+    return { labels: hours, data: hours.map(h => buckets[h]) };
+  });
 
-  // ---------- Ciclo ----------
-  async ngAfterViewInit() {
+  aiFlatItems = computed(() => {
+    const out: Array<{name: string; qty: number; unit?: string; kcal: number; cats: string[]}> = [];
+    for (const r of this.logs()) {
+      for (const it of (r.ai_items || [])) {
+        out.push({ name: it.name, qty: it.qty, unit: it.unit, kcal: it.kcal, cats: (it.categories || []) as string[] });
+      }
+    }
+    return out.sort((a,b)=> (b.kcal||0)-(a.kcal||0));
+  });
+
+  pct = computed(() => {
+    const goal = this.recKcal(); const v = this.totalKcal();
+    if (!goal) return 0;
+    return Math.max(0, Math.min(100, +((v/goal)*100).toFixed(1)));
+  });
+
+  // ===== Helpers fecha =====
+  private toInputDate(d: Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const da = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${da}`;
+  }
+  private startOfLocalDay(dateStr: string) { return new Date(`${dateStr}T00:00:00`); }
+  private nextLocalDay(dateStr: string) { const d = this.startOfLocalDay(dateStr); d.setDate(d.getDate()+1); return d; }
+
+  // ===== Lifecycle =====
+  async ngOnInit() {
     try {
       this.loading.set(true);
 
       const { data: ures, error: uerr } = await this.supabase.client.auth.getUser();
       if (uerr) throw uerr;
-      const uid = ures.user?.id;
-      if (!uid) throw new Error('Sesión no válida');
+      const uid = ures.user?.id; if (!uid) throw new Error('Sesión no válida');
+      this.uid.set(uid);
 
-      const to = new Date(); to.setHours(0,0,0,0); to.setDate(to.getDate() + 1);
-      const from = new Date(to); from.setDate(from.getDate() - this.days);
-
-      const { data, error } = await this.supabase.client
-        .from('meal_logs')
-        .select('id, description, calories, protein_g, carbs_g, fat_g, meal_type, logged_at')
+      // objetivo kcal si existe
+      const { data: rec } = await this.supabase.client
+        .from('user_recommendations')
+        .select('goal_kcal')
         .eq('user_id', uid)
-        .gte('logged_at', from.toISOString())
-        .lt('logged_at', to.toISOString())
-        .order('logged_at', { ascending: true });
+        .maybeSingle();
+      if (rec?.goal_kcal) this.recKcal.set(Number(rec.goal_kcal));
 
-      if (error) throw error;
-
-      this.rows = (data ?? []).map((r: any) => ({
-        id: String(r.id),
-        description: r.description || '',
-        calories: Number(r.calories) || 0,
-        protein_g: Number(r.protein_g ?? 0),
-        carbs_g: Number(r.carbs_g ?? 0),
-        fat_g: Number(r.fat_g ?? 0),
-        meal_type: r.meal_type as MealType,
-        logged_at: r.logged_at,
-      }));
-
-      this.computeToday();
-      this.buildCharts(from, to);
+      await this.loadDay();   // <- carga datos aquí (como en alimentation)
     } catch (e: any) {
       this.err.set(e?.message ?? 'No se pudo cargar el panel.');
     } finally {
@@ -170,194 +175,118 @@ export default class PanelPage implements AfterViewInit, OnDestroy {
     }
   }
 
-  ngOnDestroy(): void {
-    this.charts.forEach(c => c?.destroy());
-    this.charts = [];
+  async ngAfterViewInit() {
+    // cargar Chart.js solo en navegador y montar gráficos
+    if (!this.isBrowser) return;
+    const mod = await import('chart.js/auto');
+    this.Chart = mod.default || mod;
+    this.mountCharts();
   }
 
-  // ---------- Agregaciones ----------
-  private computeToday() {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const next = new Date(today); next.setDate(today.getDate() + 1);
-    const rows = this.rows.filter(r => {
-      const d = new Date(r.logged_at);
-      return d >= today && d < next;
-    });
-    this.todayKcal = rows.reduce((s, r) => s + r.calories, 0);
-    this.todayProt = rows.reduce((s, r) => s + (r.protein_g || 0), 0);
-    this.todayCarb = rows.reduce((s, r) => s + (r.carbs_g || 0), 0);
-    this.todayFat  = rows.reduce((s, r) => s + (r.fat_g || 0), 0);
+  ngOnDestroy() { this.destroyCharts(); }
+
+  // ===== Data =====
+  async loadDay() {
+    const uid = this.uid(); if (!uid) return;
+    const dateStr = this.selectedDate();
+    const from = this.startOfLocalDay(dateStr).toISOString();
+    const to   = this.nextLocalDay(dateStr).toISOString(); // EXCLUSIVO
+
+    const { data, error } = await this.supabase.client
+      .from('meal_logs')
+      .select('id, description, calories, protein_g, carbs_g, fat_g, meal_type, logged_at, meal_categories, ai_items')
+      .eq('user_id', uid)
+      .gte('logged_at', from)
+      .lt('logged_at', to)                 // <- fin exclusivo, evita TZ bugs
+      .order('logged_at', { ascending: true });
+
+    if (error) { this.err.set(error.message ?? 'Error cargando día.'); return; }
+
+    this.logs.set((data ?? []).map((r:any)=>({
+      id:String(r.id),
+      description:r.description,
+      calories:Number(r.calories)||0,
+      protein_g:r.protein_g, carbs_g:r.carbs_g, fat_g:r.fat_g,
+      meal_type:r.meal_type as MealType,
+      logged_at:r.logged_at,
+      meal_categories:r.meal_categories ?? null,
+      ai_items:r.ai_items ?? null,
+    })));
+
+    if (this.Chart) this.updateCharts();
   }
 
-  private buildCharts(from: Date, to: Date) {
-    // 1) Eje de días
-    const labels: string[] = [];
-    const dayIdx: Record<string, number> = {};
-    const cursor = new Date(from);
-    while (cursor < to) {
-      const key = this.dateKey(cursor);
-      dayIdx[key] = labels.length;
-      labels.push(this.fmtDateShort(cursor.toISOString()));
-      cursor.setDate(cursor.getDate() + 1);
-    }
+  // ===== Charts =====
+  private destroyCharts() { for (const c of this.charts) try { c.destroy(); } catch {} this.charts = []; }
 
-    // 2) Series por día
-    const kcal = new Array(labels.length).fill(0);
-    const prot = new Array(labels.length).fill(0);
-    const carb = new Array(labels.length).fill(0);
-    const fat  = new Array(labels.length).fill(0);
+  private mountCharts() {
+    this.destroyCharts();
 
-    for (const r of this.rows) {
-      const d = new Date(r.logged_at);
-      const key = this.dateKey(d);
-      const i = dayIdx[key];
-      if (i === undefined) continue;
-      kcal[i] += r.calories || 0;
-      prot[i] += r.protein_g || 0;
-      carb[i] += r.carbs_g || 0;
-      fat[i]  += r.fat_g || 0;
-    }
-
-    // flags empty
-    this.kcalEmpty = kcal.every(v => v === 0);
-    this.macroEmpty = prot.every(v => v === 0) && carb.every(v => v === 0) && fat.every(v => v === 0);
-
-    // 3) Por tipo de comida (totales en el rango)
-    const byType = { breakfast:0, lunch:0, dinner:0, snack:0 } as Record<MealType, number>;
-    for (const r of this.rows) byType[r.meal_type] += r.calories || 0;
-    this.typeEmpty = Object.values(byType).every(v => v === 0);
-
-    // 4) Top 10 comidas por calorías (suma por descripción)
-    const map = new Map<string, number>();
-    for (const r of this.rows) {
-      const k = (r.description || '—').trim().toLowerCase();
-      map.set(k, (map.get(k) || 0) + (r.calories || 0));
-    }
-    const top = [...map.entries()].sort((a,b) => b[1]-a[1]).slice(0,10);
-    const topLabels = top.map(([k]) => k || '—');
-    const topValues = top.map(([,v]) => Math.round(v));
-    this.topEmpty = topValues.length === 0 || topValues.every(v => v === 0);
-
-    // ---------- CHARTS ----------
-    const make = <TType extends ChartType>(
-      ref: ElementRef<HTMLCanvasElement>,
-      cfg: ChartConfiguration<TType>
-    ) => {
-      const c = new Chart(ref.nativeElement, cfg);
-      this.charts.push(c as unknown as Chart<any, any, any>);
-      return c;
-    };
-
-    // Línea: kcal/día
-    make<'line'>(this.caloriesLineRef, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'kcal/día',
-          data: kcal,
-          tension: 0.25,
-          pointRadius: 2.5,
-          fill: false
-        }]
-      },
-      options: {
-        ...this.baseOptions<'line'>('kcal'),
-        plugins: {
-          ...(this.baseOptions<'line'>().plugins as any),
-          legend: { display: false },
-          tooltip: {
-            ...(this.baseOptions<'line'>().plugins!.tooltip as any),
-            callbacks: {
-              label: (ctx: TooltipItem<'line'>) => ` ${ctx.formattedValue} kcal`
-            }
-          }
-        }
-      }
-    });
-
-    // Stacked: macros/día (g)
-    const baseBar = this.baseOptions<'bar'>('gramos');
-    make<'bar'>(this.macrosStackRef, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Proteína (g)', data: prot },
-          { label: 'Carbohidratos (g)', data: carb },
-          { label: 'Grasas (g)', data: fat },
-        ]
-      },
-      options: {
-        ...baseBar,
-        scales: {
-          ['x']: { ...(baseBar.scales!['x'] as any), stacked: true },
-          ['y']: { ...(baseBar.scales!['y'] as any), stacked: true, beginAtZero: true }
+    // Donut macros
+    const m = this.macros();
+    if (this.donutRef?.nativeElement) {
+      const donut = new this.Chart(this.donutRef.nativeElement.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Proteína (g)','Carbos (g)','Grasa (g)'],
+          datasets: [{ data: [m.protein_g, m.carbs_g, m.fat_g] }]
         },
-        plugins: {
-          ...(baseBar.plugins as any),
-          tooltip: {
-            ...(baseBar.plugins!.tooltip as any),
-            callbacks: { label: (ctx: TooltipItem<'bar'>) => ` ${ctx.dataset.label}: ${ctx.formattedValue} g` }
-          }
-        }
-      }
-    });
+        options: { plugins: { legend: { position:'bottom', labels:{ usePointStyle:true } } }, cutout: '65%' }
+      });
+      this.charts.push(donut);
+    }
 
-    // Donut: hoy
-    make<'doughnut'>(this.todayDonutRef, {
-      type: 'doughnut',
-      data: {
-        labels: ['Proteína (g)','Carbohidratos (g)','Grasas (g)'],
-        datasets: [{ data: [this.todayProt, this.todayCarb, this.todayFat] }]
-      },
-      options: {
-        ...this.baseOptions<'doughnut'>(),
-        plugins: {
-          legend: { position: 'bottom', labels: { color: this.tickColor } as any },
-          tooltip: {
-            ...(this.baseOptions<'doughnut'>().plugins!.tooltip as any),
-            callbacks: {
-              label: (ctx: TooltipItem<'doughnut'>) => ` ${ctx.label}: ${ctx.formattedValue} g`
-            }
-          }
-        },
-        cutout: '55%'
-      }
-    });
+    // Barras por tipo de comida
+    const byMeal = this.totalByMeal();
+    const mLabels = ['Desayuno','Almuerzo','Cena','Snack'];
+    const mData = [byMeal.breakfast, byMeal.lunch, byMeal.dinner, byMeal.snack];
+    if (this.mealsBarRef?.nativeElement) {
+      const bar1 = new this.Chart(this.mealsBarRef.nativeElement.getContext('2d'), {
+        type: 'bar',
+        data: { labels: mLabels, datasets: [{ label: 'kcal', data: mData }] },
+        options: { plugins: { legend: { display:false } }, scales: { y: { beginAtZero:true } } }
+      });
+      this.charts.push(bar1);
+    }
 
-    // Barras: por tipo
-    make<'bar'>(this.typeBarsRef, {
-      type: 'bar',
-      data: {
-        labels: ['Desayuno','Almuerzo','Cena','Snack'],
-        datasets: [{ label: 'kcal', data: [byType.breakfast, byType.lunch, byType.dinner, byType.snack] }]
-      },
-      options: {
-        ...this.baseOptions<'bar'>('kcal'),
-        plugins: { ...(this.baseOptions<'bar'>().plugins as any), legend: { display: false } },
-      }
-    });
+    // Barras por categorías
+    const cats = this.categoriesAgg();
+    const cLabels = Object.keys(cats);
+    const cData = cLabels.map(k => Math.round(cats[k]));
+    if (this.catsBarRef?.nativeElement) {
+      const bar2 = new this.Chart(this.catsBarRef.nativeElement.getContext('2d'), {
+        type: 'bar',
+        data: { labels: cLabels, datasets: [{ label: 'kcal por categoría', data: cData }] },
+        options: { indexAxis: 'y', plugins: { legend: { display:false } }, scales: { x: { beginAtZero:true } } }
+      });
+      this.charts.push(bar2);
+    }
 
-    // Barras horiz: top alimentos
-    make<'bar'>(this.topFoodsRef, {
-      type: 'bar',
-      data: {
-        labels: topLabels,
-        datasets: [{ label: 'kcal acumuladas', data: topValues }]
-      },
-      options: {
-        ...this.baseOptions<'bar'>('kcal'),
-        indexAxis: 'y',
-        plugins: {
-          ...(this.baseOptions<'bar'>().plugins as any),
-          legend: { display: false },
-          tooltip: {
-            ...(this.baseOptions<'bar'>().plugins!.tooltip as any),
-            callbacks: { label: (ctx: TooltipItem<'bar'>) => ` ${ctx.label}: ${ctx.formattedValue} kcal` }
-          }
-        }
-      }
-    });
+    // Línea por hora
+    const tl = this.timelineAgg();
+    if (this.timelineRef?.nativeElement) {
+      const line = new this.Chart(this.timelineRef.nativeElement.getContext('2d'), {
+        type: 'line',
+        data: { labels: tl.labels, datasets: [{ label: 'kcal por hora', data: tl.data, tension: .35, fill:false, pointRadius:3 }] },
+        options: { plugins: { legend: { display:false } }, scales: { y: { beginAtZero:true } } }
+      });
+      this.charts.push(line);
+    }
+  }
+
+  private updateCharts() { this.mountCharts(); }
+
+  // ===== UI =====
+  async onDateChange(v: string) {
+    this.selectedDate.set(v);
+    await this.loadDay();
+  }
+
+  mealLabel(t: MealType) {
+    return t==='breakfast'?'Desayuno':t==='lunch'?'Almuerzo':t==='dinner'?'Cena':'Snack';
+  }
+
+  fmtTime(iso: string) {
+    return new Date(iso).toLocaleTimeString('es-PE',{ hour:'2-digit', minute:'2-digit' });
   }
 }
