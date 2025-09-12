@@ -42,23 +42,31 @@
     <!-- CHARTS LEFT -->
     <section class="card charts">
       <h3 class="title"><lucide-icon [img]="PieChartIcon"></lucide-icon> Macronutrientes</h3>
-      <canvas #donut height="200"></canvas>
+      <div class="chartbox h200">
+        <canvas #donut></canvas>
+      </div>
     </section>
 
     <section class="card charts">
       <h3 class="title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Kcal por comida</h3>
-      <canvas #mealsBar height="220"></canvas>
+      <div class="chartbox h220">
+        <canvas #mealsBar></canvas>
+      </div>
     </section>
 
     <!-- CHARTS RIGHT -->
     <section class="card charts full">
       <h3 class="title"><lucide-icon [img]="BarChart3Icon"></lucide-icon> Kcal por categorías</h3>
-      <canvas #catsBar height="280"></canvas>
+      <div class="chartbox h280">
+        <canvas #catsBar></canvas>
+      </div>
     </section>
 
     <section class="card charts full">
       <h3 class="title"><lucide-icon [img]="LineChartIcon"></lucide-icon> Kcal por hora</h3>
-      <canvas #timeline height="220"></canvas>
+      <div class="chartbox h220">
+        <canvas #timeline></canvas>
+      </div>
     </section>
 
     <!-- LISTADO DEL DÍA -->

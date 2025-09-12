@@ -98,7 +98,6 @@ export default class PanelPage implements AfterViewInit {
         });
       }
     }
-    // ordenar por kcal desc
     out.sort((a,b)=>b.kcal-a.kcal);
     return out;
   });
@@ -204,7 +203,7 @@ export default class PanelPage implements AfterViewInit {
     }
 
     // Render charts cuando haya canvas disponible
-    if (this.isBrowser) queueMicrotask(()=> this.mountCharts());
+    if (this.isBrowser) setTimeout(() => this.mountCharts());
   }
 
   // ======= Eventos UI =======
