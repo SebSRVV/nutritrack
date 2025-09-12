@@ -1,5 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {
+  ChangeDetectionStrategy, Component, computed, inject, signal,
+  AfterViewInit, OnDestroy, PLATFORM_ID
+} from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
   LucideAngularModule,
@@ -23,8 +26,8 @@ type MealLog = {
   fat_g: number | null;
   meal_type: MealType;
   logged_at: string; // ISO
-  meal_categories?: MealCategory[] | null; // opcional si agregas columna
-  ai_items?: any | null;                   // opcional si agregas columna
+  meal_categories?: MealCategory[] | null;
+  ai_items?: any | null;
 };
 
 type AnalysisItem = { name: string; qty: number; unit?: string; kcal: number; categories: MealCategory[] };
@@ -46,7 +49,7 @@ type Analysis = {
   styleUrls: ['./alimentation.page.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class AlimentationPage {
+export default class AlimentationPage implements AfterViewInit, OnDestroy {
   // Icons
   readonly UtensilsCrossedIcon = UtensilsCrossedIcon;
   readonly PlusIcon = PlusIcon;
@@ -57,6 +60,8 @@ export default class AlimentationPage {
   readonly SettingsIcon = SettingsIcon;
 
   private supabase = inject(SupabaseService);
+  private platformId = inject(PLATFORM_ID);
+  private isBrowser = isPlatformBrowser(this.platformId);
 
   // Estado base
   loading = signal(true);
@@ -73,10 +78,18 @@ export default class AlimentationPage {
   analysis = signal<Analysis | null>(null);
   analysisErr = signal<string | null>(null);
 
-  // Imagen
+  // Imagen / Uploader UX
   uploading = signal(false);
   imgPath = signal<string | null>(null);        // ruta en Storage
   imgPublicUrl = signal<string | null>(null);   // URL pública para OpenAI
+
+  maxMB = 8;
+  allowed = ['image/png','image/jpeg','image/webp','image/gif'];
+  dzDrag = signal(false);                 // estado de drag-over
+  previewUrl = signal<string|null>(null); // Object URL para preview inmediata
+  previewName = signal<string>('');       // nombre mostrado
+  previewSize = signal<string>('');       // tamaño amigable
+  uploadPct = signal<number>(0);          // progreso (simulado)
 
   // Hoy
   todayLogs = signal<MealLog[]>([]);
@@ -129,6 +142,27 @@ export default class AlimentationPage {
       this.loading.set(false);
     }
   }
+
+  ngAfterViewInit() {
+    // Evitar ReferenceError en SSR
+    if (this.isBrowser) {
+      window.addEventListener('paste', this.onPaste);
+    }
+  }
+
+  ngOnDestroy() {
+    if (this.isBrowser) {
+      window.removeEventListener('paste', this.onPaste);
+    }
+    this.revokePreview();
+  }
+
+  private onPaste = async (e: ClipboardEvent) => {
+    const item = Array.from(e.clipboardData?.items || []).find(i => i.type.startsWith('image/'));
+    if (!item) return;
+    const file = item.getAsFile();
+    if (file) await this.handleFile(file);
+  };
 
   private startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d; }
   private endOfToday()   { const d = this.startOfToday(); d.setDate(d.getDate()+1); return d; }
@@ -185,32 +219,95 @@ export default class AlimentationPage {
     return data.publicUrl;
   }
 
-  async onFile(ev: Event) {
-    const f = (ev.target as HTMLInputElement).files?.[0];
-    if (!f) return;
-    if (!this.uid()) { this.analysisErr.set('Sesión no válida'); return; }
-    this.uploading.set(true);
-    this.analysisErr.set(null);
+  // ===== Uploader UX =====
+  private revokePreview() {
+    if (this.isBrowser && typeof URL !== 'undefined') {
+      const u = this.previewUrl(); if (u) URL.revokeObjectURL(u);
+    }
+    this.previewUrl.set(null);
+  }
 
+  private formatBytes(n: number) {
+    if (!Number.isFinite(n)) return '';
+    const u = ['B','KB','MB','GB']; let i = 0;
+    while (n >= 1024 && i < u.length-1) { n /= 1024; i++; }
+    return `${n.toFixed(n >= 10 || i===0 ? 0 : 1)} ${u[i]}`;
+  }
+
+  private validateFile(f: File) {
+    if (!this.allowed.includes(f.type)) throw new Error('Formato no soportado. Usa PNG, JPG o WebP.');
+    const limit = this.maxMB * 1024 * 1024;
+    if (f.size > limit) throw new Error(`La imagen supera ${this.maxMB}MB.`);
+  }
+
+  async onFileInput(ev: Event) {
+    const file = (ev.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    await this.handleFile(file);
+  }
+
+  onDragOver(e: DragEvent) { e.preventDefault(); this.dzDrag.set(true); }
+  onDragLeave(e: DragEvent) { e.preventDefault(); this.dzDrag.set(false); }
+  async onDrop(e: DragEvent) {
+    e.preventDefault(); this.dzDrag.set(false);
+    const f = e.dataTransfer?.files?.[0]; if (f) await this.handleFile(f);
+  }
+
+  private async handleFile(f: File) {
+    if (!this.uid()) { this.analysisErr.set('Debes iniciar sesión.'); return; }
     try {
+      this.validateFile(f);
+
+      // Preview instantánea (sólo en navegador)
+      this.revokePreview();
+      if (this.isBrowser && typeof URL !== 'undefined') {
+        const objUrl = URL.createObjectURL(f);
+        this.previewUrl.set(objUrl);
+      } else {
+        this.previewUrl.set(null);
+      }
+      this.previewName.set(f.name);
+      this.previewSize.set(this.formatBytes(f.size));
+
+      // Subida a Storage
+      this.uploading.set(true);
+      this.analysisErr.set(null);
+      this.uploadPct.set(15); // progreso visual optimista
+
       const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
       const filePath = `u_${this.uid()}/${Date.now()}.${ext}`;
+
       const { error } = await this.supabase.client.storage.from('meal_uploads')
         .upload(filePath, f, { upsert: true, contentType: f.type || 'image/*' });
       if (error) throw error;
+
+      this.uploadPct.set(80);
+
       this.imgPath.set(filePath);
       this.imgPublicUrl.set(this.getPublicUrl(filePath));
+
+      this.uploadPct.set(100);
+      setTimeout(() => this.uploadPct.set(0), 600);
     } catch (e: any) {
       this.analysisErr.set(e?.message ?? 'No se pudo subir la imagen.');
+      this.removeImage(); // limpiar preview si falló
     } finally {
       this.uploading.set(false);
     }
   }
 
+  viewImage() {
+    if (!this.isBrowser) return;
+    const u = this.imgPublicUrl(); if (u) window.open(u, '_blank');
+  }
+
   removeImage() {
     this.imgPath.set(null);
     this.imgPublicUrl.set(null);
-    // No borramos del storage para permitir auditoría; si quieres, puedes llamar a remove().
+    this.previewName.set('');
+    this.previewSize.set('');
+    this.uploadPct.set(0);
+    this.revokePreview();
   }
 
   // ---- API: analizar (Edge Function ai-analyze) ----
@@ -225,7 +322,6 @@ export default class AlimentationPage {
     });
 
     if (error) {
-      // Hacemos un intento de diagnóstico extra con fetch directo al endpoint público (opcional)
       try {
         const url = `${environment.supabaseUrl}/functions/v1/ai-analyze`;
         const r = await fetch(url, {
@@ -237,8 +333,8 @@ export default class AlimentationPage {
           const txt = await r.text().catch(() => '');
           throw new Error(`No se pudo analizar. status=${r.status} ${txt || ''}`);
         }
-        const payload = await r.json();
-        return this.normalizeAnalysis(payload);
+        const payload2 = await r.json();
+        return this.normalizeAnalysis(payload2);
       } catch (e: any) {
         throw new Error(this.formatInvokeError(error, data) + (e?.message ? ` | ${e.message}` : ''));
       }
@@ -281,7 +377,7 @@ export default class AlimentationPage {
         hint: this.mealType(),
       });
 
-      // Si quieres forzar el tipo a la pestaña seleccionada:
+      // Forzar tipo igual a la pestaña seleccionada
       a.meal_type = this.mealType();
 
       this.analysis.set(a);
@@ -359,7 +455,7 @@ export default class AlimentationPage {
 
   /** Prompt seguro (solo en cliente) para ingresar kcal manualmente */
   openManualPrompt() {
-    if (typeof window === 'undefined') return; // SSR safe
+    if (!this.isBrowser) return; // SSR safe
     const raw = window.prompt('Ingresa kcal (estimado):', '300');
     const v = Number(raw ?? 0);
     if (!Number.isFinite(v) || v <= 0) return;

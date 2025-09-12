@@ -43,19 +43,65 @@
                 (input)="text.set($any($event.target).value)"
                 placeholder="Puedes usar texto…"></textarea>
 
-      <!-- Uploader -->
+      <!-- Uploader PRO -->
       <div class="uploader" aria-label="Subir imagen de comida">
-        <div class="row">
-          <label class="lbl" style="margin:0">…o sube una imagen</label>
-          <input type="file" accept="image/*" (change)="onFile($event)" [disabled]="uploading()" />
-          <button class="btn ghost" (click)="removeImage()" *ngIf="imgPath()" [disabled]="uploading()">Quitar imagen</button>
+        <!-- Dropzone / Click-to-upload -->
+        <div class="dropzone"
+             tabindex="0"
+             [class.dragover]="dzDrag()"
+             (click)="fileInput?.click()"
+             (keydown.enter)="fileInput?.click()"
+             (keydown.space)="fileInput?.click()"
+             (dragover)="onDragOver($event)"
+             (dragleave)="onDragLeave($event)"
+             (drop)="onDrop($event)">
+          <div class="thumb">
+            <img *ngIf="previewUrl(); else nu" [src]="previewUrl()!" alt="Vista previa" />
+            <ng-template #nu>
+              <lucide-icon [img]="UtensilsCrossedIcon"></lucide-icon>
+            </ng-template>
+          </div>
+
+          <div class="file-meta">
+            <div class="file-title">
+              {{ previewName() || 'Arrastra tu foto aquí o haz click para elegir' }}
+            </div>
+            <div class="file-sub">
+              <span *ngIf="previewSize()">{{ previewSize() }}</span>
+              <span *ngIf="!previewUrl()">• PNG/JPG/WebP • Máx {{ maxMB }}MB</span>
+            </div>
+            <div class="pills" *ngIf="imgPublicUrl()">
+              <span class="pill"><i class="dot-ok"></i> lista para IA</span>
+            </div>
+          </div>
+
+          <div class="uploader-actions">
+            <button class="btn ghost" type="button" (click)="fileInput?.click()" [disabled]="uploading()">Elegir</button>
+            <button class="btn" type="button" (click)="viewImage()" *ngIf="imgPublicUrl()">Ver</button>
+            <button class="btn ghost" type="button" (click)="removeImage()" *ngIf="previewUrl()">Quitar</button>
+          </div>
         </div>
 
-        <div class="preview" *ngIf="imgPublicUrl()">
-          <img [src]="imgPublicUrl()!" alt="Vista previa" />
-          <div>
-            <div style="font-weight:800">Imagen lista para analizar</div>
-            <div style="color:#b9c4d7; font-weight:700">{{ imgPath() }}</div>
+        <!-- input real escondido -->
+        <input #fileInput type="file" accept="image/*" (change)="onFileInput($event)" hidden />
+
+        <!-- Progreso y ayuda -->
+        <div class="progress" *ngIf="uploading()"><i [style.--w.%]="uploadPct()"></i></div>
+        <p class="helper">
+
+        </p>
+
+        <!-- Estado final tras subir (opcional) -->
+        <div class="preview-card" *ngIf="imgPublicUrl() && !analysis()">
+          <div class="left">
+            <div class="thumb"><img [src]="previewUrl()!" alt="Vista previa" /></div>
+            <div>
+              <div class="file-title">Imagen lista para analizar</div>
+              <div class="file-sub">{{ imgPath() }}</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" (click)="analyze()" [disabled]="analyzing()">Analizar con IA</button>
           </div>
         </div>
       </div>
@@ -72,7 +118,21 @@
 
       <!-- Resultado análisis -->
       <div class="analysis" *ngIf="analysis()">
-        <div class="kcal">
+        <!-- Mini tarjeta de imagen analizada (opcional) -->
+        <div class="preview-card" *ngIf="imgPublicUrl()">
+          <div class="left">
+            <div class="thumb"><img [src]="previewUrl()!" alt="Vista previa" /></div>
+            <div>
+              <div class="file-title">Imagen analizada</div>
+              <div class="file-sub">{{ imgPath() }}</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn" type="button" (click)="viewImage()">Ver</button>
+          </div>
+        </div>
+
+        <div class="kcal" style="margin-top:.5rem">
           <lucide-icon [img]="FlameIcon"></lucide-icon>
           <b>{{ analysis()!.kcal }}</b> kcal
           <span class="muted">• {{ analysis()!.protein_g }} g prot • {{ analysis()!.carbs_g }} g carb • {{ analysis()!.fat_g }} g grasa</span>
@@ -86,7 +146,7 @@
           <li *ngFor="let it of analysis()!.items">
             <span>
               {{ it.qty }} {{ it.unit || '' }} {{ it.name }}
-              <small style="color:#b9c4d7; font-weight:700" *ngIf="it.categories?.length"> – {{ it.categories.join(', ') }}</small>
+              <small style="color:#b9c4d7; font-weight:700" *ngIf="it.categories.length"> – {{ it.categories.join(', ') }}</small>
             </span>
             <b>{{ it.kcal }} kcal</b>
           </li>
