@@ -67,7 +67,7 @@
           <div></div>
         </div>
 
-        <!-- Talla y Peso (sincronizados) -->
+        <!-- Talla y Peso (solo sliders, mismo tamaño) -->
         <div class="field two sliders">
           <!-- Talla -->
           <div>
@@ -85,17 +85,11 @@
               <input
                 id="f-height"
                 class="range"
-                type="range" min="80" max="230"
+                type="range" min="80" max="230" step="1"
                 [value]="heightVal()"
                 (input)="setHeight(+$any($event.target).value)"
               />
               <span class="bubble" [style.--p]="heightPct()">{{ heightVal() }} cm</span>
-              <input
-                aria-label="Talla en centímetros"
-                class="number" type="number" min="80" max="230"
-                [value]="heightVal()"
-                (input)="setHeight(+$any($event.target).value)"
-              />
             </div>
           </div>
 
@@ -115,20 +109,15 @@
               <input
                 id="f-weight"
                 class="range cyan"
-                type="range" min="25" max="250" step="0.5"
+                type="range" min="25" max="250" step="1"
                 [value]="weightVal()"
                 (input)="setWeight(+$any($event.target).value)"
               />
               <span class="bubble cyan" [style.--p]="weightPct()">{{ weightVal() }} kg</span>
-              <input
-                aria-label="Peso en kilogramos"
-                class="number" type="number" min="25" max="250" step="0.5"
-                [value]="weightVal()"
-                (input)="setWeight(+$any($event.target).value)"
-              />
             </div>
           </div>
         </div>
+
 
         <!-- CTA -->
         <button class="btn btn-primary full" [disabled]="submitting()">
@@ -144,7 +133,7 @@
       </form>
     </article>
 
-    <!-- Columna derecha -->
+    <!-- Columna derecha (sin cambios funcionales) -->
     <aside class="card visuals">
       <h2 class="aside-title">Tu salud, visualizada</h2>
       <p class="aside-sub">Ajusta tus datos y observa cómo cambian las barras en tiempo real.</p>
@@ -166,7 +155,6 @@
 
       <p class="aside-foot">Podrás editar estos datos luego en tu perfil.</p>
 
-      <!-- Radios dentro del mismo formGroup -->
       <div class="summary surface" [formGroup]="form">
         <div class="sex-group">
           <label>Sexo</label>
@@ -183,53 +171,76 @@
           </div>
         </div>
 
-        <div class="bmi" *ngIf="bmi() as v">
-          <div class="bmi-left">
-            <div class="bmi-ic"
-                 [class.green]="bmiStatus().color==='green'"
-                 [class.cyan]="bmiStatus().color==='cyan'"
-                 [class.amber]="bmiStatus().color==='amber'"
-                 [class.violet]="bmiStatus().color==='violet'">
-              <lucide-icon [img]="HeartPulseIcon" aria-hidden="true"></lucide-icon>
-            </div>
-            <div>
-              <div class="bmi-title">IMC</div>
-              <div class="bmi-val">{{ v }}</div>
+        <!-- Bloque métricas (igual) -->
+        <ng-container *ngIf="metricsLoading(); else metricsLoaded">
+          <div class="bmi loading">
+            <div class="bmi-left">
+              <div class="bmi-ic"><lucide-icon [img]="HeartPulseIcon" aria-hidden="true"></lucide-icon></div>
+              <div>
+                <div class="bmi-title">IMC</div>
+                <div class="bmi-val">Cargando…</div>
+              </div>
             </div>
           </div>
-          <div class="bmi-right">
-            <span class="pill"
-                  [class.green]="bmiStatus().color==='green'"
-                  [class.cyan]="bmiStatus().color==='cyan'"
-                  [class.amber]="bmiStatus().color==='amber'"
-                  [class.violet]="bmiStatus().color==='violet'">
-              {{ bmiStatus().label }}
-            </span>
-          </div>
-        </div>
-      </div>
+        </ng-container>
 
-      <!-- Stats: Edad y próximo cumple -->
-      <div class="surface facts" *ngIf="age() !== null">
-        <div class="fact">
-          <div class="fact-ic">
-            <lucide-icon [img]="InfoIcon" aria-hidden="true"></lucide-icon>
-          </div>
-          <div>
-            <div class="fact-title">Edad</div>
-            <div class="fact-val">{{ age() }} años</div>
-          </div>
-        </div>
+        <ng-template #metricsLoaded>
+          <ng-container *ngIf="!metricsError(); else metricsErrorTpl">
+            <div class="bmi" *ngIf="metricsData() as m">
+              <div class="bmi-left">
+                <div class="bmi-ic"
+                     [class.green]="m.bmiStatus === 'Saludable'"
+                     [class.cyan]="m.bmiStatus === 'Sobrepeso'"
+                     [class.amber]="m.bmiStatus === 'Bajo peso'"
+                     [class.violet]="m.bmiStatus === 'Obesidad'">
+                  <lucide-icon [img]="HeartPulseIcon" aria-hidden="true"></lucide-icon>
+                </div>
+                <div>
+                  <div class="bmi-title">IMC</div>
+                  <div class="bmi-val">{{ m?.bmi ?? '—' }}</div>
+                </div>
+              </div>
+              <div class="bmi-right">
+                <span class="pill"
+                      [class.green]="m.bmiStatus === 'Saludable'"
+                      [class.cyan]="m.bmiStatus === 'Sobrepeso'"
+                      [class.amber]="m.bmiStatus === 'Bajo peso'"
+                      [class.violet]="m.bmiStatus === 'Obesidad'">
+                  {{ m?.bmiStatus || '—' }}
+                </span>
+              </div>
+            </div>
 
-        <div class="fact">
-          <div class="fact-ic">
-            <lucide-icon [img]="CalendarIcon" aria-hidden="true"></lucide-icon>
-          </div>
-          <div>
-            <div class="fact-title">Cumple en</div>
-            <div class="fact-val">{{ daysToBday() }} días</div>
-          </div>
-        </div>
+            <div class="surface facts" *ngIf="metricsData() as m">
+              <div class="fact" *ngIf="m?.age !== null">
+                <div class="fact-ic">
+                  <lucide-icon [img]="InfoIcon" aria-hidden="true"></lucide-icon>
+                </div>
+                <div>
+                  <div class="fact-title">Edad</div>
+                  <div class="fact-val">{{ m.age }} años</div>
+                </div>
+              </div>
+
+              <div class="fact" *ngIf="m?.daysUntilBirthday !== null">
+                <div class="fact-ic">
+                  <lucide-icon [img]="CalendarIcon" aria-hidden="true"></lucide-icon>
+                </div>
+                <div>
+                  <div class="fact-title">Cumple en</div>
+                  <div class="fact-val">{{ m.daysUntilBirthday }} días</div>
+                </div>
+              </div>
+            </div>
+
+          </ng-container>
+
+          <ng-template #metricsErrorTpl>
+            <div class="surface">
+              <p class="err">{{ metricsError() }}</p>
+            </div>
+          </ng-template>
+        </ng-template>
       </div>
 
     </aside>

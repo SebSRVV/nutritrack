@@ -1,6 +1,6 @@
 :host { display: contents; }
 
-/* Layout */
+/* =============== Layout =============== */
 .container { width: min(1120px, 92vw); margin-inline: auto; }
 
 .reg-root {
@@ -13,7 +13,7 @@
   color: #e6edf6;
 }
 
-/* Header */
+/* =============== Header =============== */
 .reg-header {
   display: flex; align-items: center; justify-content: space-between;
   width: min(1120px, 92vw); margin: 0 auto 1.2rem;
@@ -29,7 +29,7 @@
 }
 .back-link:hover { color: #fff; background: rgba(255,255,255,.10); }
 
-/* Cards & grid */
+/* =============== Cards & grid =============== */
 .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 1.2rem; }
 @media (max-width: 960px){ .grid { grid-template-columns: 1fr; } }
 
@@ -39,8 +39,7 @@
   border-radius: 16px;
   padding: 1.2rem;
   backdrop-filter: blur(6px);
-  /* anti-flicker */
-  backface-visibility: hidden;
+  backface-visibility: hidden;  /* anti-flicker */
   transform: translateZ(0);
   contain: paint;
 }
@@ -48,7 +47,7 @@
 .title { margin: .2rem 0 .3rem; font-weight: 900; letter-spacing: -.02em; font-size: clamp(1.4rem, 1rem + 1.5vw, 2rem); }
 .sub { color: #b6c2d3; margin-bottom: 1rem; }
 
-/* ---------- Campos ---------- */
+/* =============== Campos =============== */
 .field { display: grid; gap: .35rem; margin-bottom: .9rem; }
 .field.two { grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 720px){ .field.two { grid-template-columns: 1fr; } }
@@ -94,16 +93,13 @@
 lucide-icon { width: 18px; height: 18px; display: inline-block; vertical-align: middle; line-height: 0; }
 lucide-icon svg{ display:block; width:100%; height:100%; }
 
-/* Number: quita spinners */
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-input[type=number] { -moz-appearance: textfield; }
-
 /* Errores / texto auxiliar */
 .err { color: #ff9b9b; font-size: .86rem; }
 .muted { color: #b6c2d3; }
 
-/* ---------- Sliders ---------- */
+/* =============== Sliders (solo barras) =============== */
+
+/* Medidor superior */
 .meter{
   position: relative; height: 22px; border-radius: 999px; overflow: hidden;
   background: rgba(255,255,255,.08); margin: .8rem 0 1rem; border: 1px solid rgba(255,255,255,.10);
@@ -119,26 +115,23 @@ input[type=number] { -moz-appearance: textfield; }
 .meter.cyan .bar{ background: linear-gradient(180deg,#22d3ee,#0891b2); }
 .meter .label{ position: absolute; inset: 0; display: grid; place-items: center; font-size: .85rem; font-weight: 800; color: #061018; mix-blend-mode: screen; pointer-events: none; }
 
-/* envoltorio controles */
+/* Contenedor del slider (mismo ancho para ambos) */
 .sliders .range-wrap{
   position: relative;
-  display: grid; grid-template-columns: 1fr 120px;
-  align-items: center; gap: 1rem;
-  padding-top: 2rem; /* reserva para la burbuja */
-}
-.range { accent-color: #34d399; width: 100%; }
-.range.cyan { accent-color: #22d3ee; }
-.number{
-  width: 120px; text-align: right;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  color: #e6edf6; border-radius: 10px; padding: .55rem .6rem;
-  font-variant-numeric: tabular-nums;
+  display: grid;
+  grid-template-columns: 1fr;   /* solo el slider */
+  align-items: center;
+  gap: 0;                       /* sin input numérico */
+  padding-top: 2rem;            /* espacio para la burbuja */
 }
 
-/* Burbuja fija — usa transform (no left: %) */
+/* Barra de rango */
+.range { width: 100%; accent-color: #34d399; }
+.range.cyan { accent-color: #22d3ee; }
+
+/* Burbuja fija — se mueve con transform usando % del slider */
 .bubble{
-  position: absolute; top: -0.8rem; left: 0;
+  position: absolute; top: -0.6rem; left: 0;
   transform: translateX(calc(var(--p, 0) * 1%)) translateX(-50%);
   padding: .28rem .6rem; border-radius: 1.2rem; font-size: .85rem; font-weight: 800;
   background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12);
@@ -149,7 +142,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .bubble.cyan { background: rgba(34,211,238,.18); border-color: rgba(34,211,238,.35); }
 
-/* ---------- Aside ---------- */
+/* =============== Aside =============== */
 .visuals { display: grid; align-content: start; gap: .8rem; }
 .aside-title { margin: 0; font-weight: 900; }
 .aside-sub { margin: 0; color: #b6c2d3; }
@@ -157,8 +150,12 @@ input[type=number] { -moz-appearance: textfield; }
 .tile { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: .8rem; display: grid; gap: .6rem; }
 .tile > span { color: #cbd5e1; font-weight: 700; }
 
-/* Spark vertical — usa transform en lugar de height:% */
-.spark { height: 140px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); overflow: hidden; display: flex; align-items: end; padding: 6px; }
+/* Spark vertical — usa transform para mejor perf */
+.spark {
+  height: 140px; border-radius: 10px; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08); overflow: hidden;
+  display: flex; align-items: end; padding: 6px;
+}
 .spark-bar {
   width: 100%; height: 100%;
   border-radius: 6px; background: linear-gradient(180deg,#34d399,#059669);
@@ -172,7 +169,7 @@ input[type=number] { -moz-appearance: textfield; }
 
 .summary { margin-top: 1rem; padding: .9rem; border-radius: 12px; display: grid; gap: .9rem; }
 
-/* ---------- Sexo – pill con color por selección ---------- */
+/* =============== Sexo – segmented control =============== */
 .sex-group { display: grid; gap: .35rem; }
 .segmented{
   position: relative;
@@ -216,7 +213,7 @@ input[type=number] { -moz-appearance: textfield; }
   }
 }
 
-/* ---------- BMI ---------- */
+/* =============== BMI card =============== */
 .surface { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; }
 .bmi { display: flex; align-items: center; justify-content: space-between; padding: .8rem .9rem; gap: 1rem; }
 .bmi-left { display: flex; align-items: center; gap: .75rem; }
@@ -224,47 +221,7 @@ input[type=number] { -moz-appearance: textfield; }
 .bmi-title { color: #cbd5e1; font-weight: 700; font-size: .9rem; }
 .bmi-val { font-size: 1.4rem; font-weight: 900; letter-spacing: -.02em; }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 0; border-radius: 14px; padding: .9rem 1rem; font-weight: 800; }
-.btn-primary { background: linear-gradient(180deg,#15c26b,#0e9f5b); color:#07131b; box-shadow: 0 10px 30px rgba(16,185,129,.35); }
-.btn-primary:hover { filter: brightness(1.05); }
-.full { width: 100%; margin-top: .4rem; }
-.server { margin-top: .6rem; }
-
-/* =========================
-   Apariencia IMC (BMI card)
-   ========================= */
-.surface.bmi-card {
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 12px;
-}
-
-.bmi {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: .9rem 1rem;
-}
-
-.bmi-left { display: flex; align-items: center; gap: .8rem; }
-
-/* cuadrito del icono */
-.bmi-ic {
-  width: 44px; height: 44px;
-  display: grid; place-items: center;
-  border-radius: 10px;
-  background: rgba(255,255,255,.10);
-  border: 1px solid rgba(255,255,255,.12);
-  box-shadow: 0 8px 18px rgba(0,0,0,.15) inset;
-}
-
-/* Tipos y pesos */
-.bmi-title { color: #cbd5e1; font-weight: 700; font-size: .92rem; line-height: 1; margin-bottom: .15rem; }
-.bmi-val   { font-size: 1.6rem; font-weight: 900; letter-spacing: -.02em; }
-
-/* chip de estado a la derecha */
-.bmi-right { display: flex; align-items: center; }
+/* Chips de estado */
 .pill {
   padding: .38rem .7rem;
   border-radius: 999px;
@@ -274,7 +231,6 @@ input[type=number] { -moz-appearance: textfield; }
   background: rgba(255,255,255,.10);
 }
 
-/* Colores según rango (coinciden con tu paleta) */
 .pill.green, .bmi-ic.green {
   background: linear-gradient(180deg,#34d399,#059669) !important;
   color: #061018;
@@ -300,7 +256,7 @@ input[type=number] { -moz-appearance: textfield; }
   box-shadow: 0 8px 24px rgba(167,139,250,.25);
 }
 
-/* --- Facts (Edad / Cumple) --- */
+/* =============== Facts (Edad / Cumple) =============== */
 .facts{
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -309,7 +265,6 @@ input[type=number] { -moz-appearance: textfield; }
   border-radius: 12px;
   margin-top: .8rem;
 }
-
 .fact{
   display: flex; align-items: center; gap: .8rem;
   padding: .75rem .9rem;
@@ -317,14 +272,12 @@ input[type=number] { -moz-appearance: textfield; }
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.08);
 }
-
 .fact-ic{
   width: 40px; height: 40px; border-radius: 10px;
   display: grid; place-items: center;
   background: rgba(255,255,255,.10);
   border: 1px solid rgba(255,255,255,.12);
 }
-
 .fact-title{ color: #cbd5e1; font-weight: 700; font-size: .9rem; line-height: 1; }
 .fact-val  { font-size: 1.2rem; font-weight: 900; letter-spacing: -.01em; }
 
@@ -333,21 +286,9 @@ input[type=number] { -moz-appearance: textfield; }
   .facts{ grid-template-columns: 1fr; }
 }
 
-.messages {
-  margin-top: .8rem;
-  text-align: center;
-}
-
-.success {
-  color: #34d399; /* verde */
-  font-size: .95rem;
-  font-weight: 600;
-}
-
-.err.server {
-  color: #ff9b9b;
-  font-size: .9rem;
-}
+.messages { margin-top: .8rem; text-align: center; }
+.success { color: #34d399; font-size: .95rem; font-weight: 600; }
+.err.server { color: #ff9b9b; font-size: .9rem; }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce){
