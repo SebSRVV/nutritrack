@@ -22,15 +22,14 @@ const mask = (v) => {
 const SUPABASE_URL      = pick('SUPABASE_URL', 'supabaseUrl', 'supabaseURL');
 const SUPABASE_ANON_KEY = pick('SUPABASE_ANON_KEY', 'supabaseAnonKey', 'supabase_anon_key');
 
-const NUTRITIONIX_APP_ID  = pick('NUTRITIONIX_APP_ID',  'NUTRITIONIX_API_ID',  'nutritionixAppId',  'nutritionix_app_id');
-const NUTRITIONIX_APP_KEY = pick('NUTRITIONIX_APP_KEY', 'NUTRITIONIX_API_KEY', 'nutritionixAppKey', 'nutritionix_app_key');
+// Nueva: API Base URL (leer variantes)
+const API_BASE_URL = pick('API_BASE_URL', 'apiBaseUrl', 'API_URL', 'api_url');
 
 const allowMissing = process.env.ALLOW_MISSING_ENV === '1';
 const missing = [];
-if (!SUPABASE_URL) missing.push('SUPABASE_URL');
+if (!SUPABASE_URL)      missing.push('SUPABASE_URL');
 if (!SUPABASE_ANON_KEY) missing.push('SUPABASE_ANON_KEY');
-if (!NUTRITIONIX_APP_ID) missing.push('NUTRITIONIX_APP_ID');
-if (!NUTRITIONIX_APP_KEY) missing.push('NUTRITIONIX_APP_KEY');
+if (!API_BASE_URL)      missing.push('API_BASE_URL');
 
 if (missing.length) {
   console.warn('[generate-env] ⚠️ Faltan variables:', missing.join(', '));
@@ -44,19 +43,17 @@ export const environment = {
   production: ${production},
   supabaseUrl: ${JSON.stringify(SUPABASE_URL)},
   supabaseAnonKey: ${JSON.stringify(SUPABASE_ANON_KEY)},
-  nutritionixAppId: ${JSON.stringify(NUTRITIONIX_APP_ID)},
-  nutritionixAppKey: ${JSON.stringify(NUTRITIONIX_APP_KEY)}
+  apiBaseUrl: ${JSON.stringify(API_BASE_URL)}
 } as const;
 `;
 
-fs.writeFileSync(path.join(envDir, 'environment.ts'),     tpl(false));
+fs.writeFileSync(path.join(envDir, 'environment.ts'),      tpl(false));
 fs.writeFileSync(path.join(envDir, 'environment.prod.ts'), tpl(true));
 
 console.log('[generate-env] ✅ environment.ts y environment.prod.ts generados.');
 console.log(`[generate-env]    Supabase URL:  ${SUPABASE_URL || '(vacío)'}`);
 console.log(`[generate-env]    Supabase Key:  ${mask(SUPABASE_ANON_KEY)}`);
-console.log(`[generate-env]    Nutritionix ID: ${mask(NUTRITIONIX_APP_ID)}`);
-console.log(`[generate-env]    Nutritionix Key:${mask(NUTRITIONIX_APP_KEY)}`);
+console.log(`[generate-env]    API Base URL:  ${API_BASE_URL || '(vacío)'}`);
 
 if (missing.length && !allowMissing) {
   console.error('[generate-env] ❌ Build bloqueado por variables faltantes.');
