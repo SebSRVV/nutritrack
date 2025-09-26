@@ -1,0 +1,140 @@
+<div class="page fade-in">
+  <header class="topbar elevate slide-down">
+    <div class="left">
+      <h1>Metas alimentarias</h1>
+      <p class="muted">Semana: {{ weekRangeLabel() }}</p>
+    </div>
+    <div class="actions">
+      <div class="search">
+        <input
+          type="text"
+          placeholder="Buscar metas…"
+          (input)="search.set(($event.target as HTMLInputElement).value)"
+        />
+        <span class="kbd">/</span>
+      </div>
+      <select class="filter" (change)="filterActive.set(($event.target as HTMLSelectElement).value as any)">
+        <option value="all">Todas</option>
+        <option value="active">Activas</option>
+        <option value="inactive">Inactivas</option>
+      </select>
+      <button class="btn primary pulse" (click)="openNew()">+ Nueva meta</button>
+    </div>
+  </header>
+
+  <section class="content">
+    <div class="loading" *ngIf="loading()">Cargando…</div>
+
+    <div class="grid" *ngIf="!loading() && filteredGoals().length">
+      <div
+        class="card hover-lift zoom-in"
+        *ngFor="let g of filteredGoals(); trackBy: g?.id"
+      >
+        <div class="card-head">
+          <div class="title-wrap">
+            <h3 [class.inactive]="!g.is_active">{{ g.title }}</h3>
+            <span class="badge" [class.badge-inactive]="!g.is_active">
+              {{ g.is_active ? 'Activa' : 'Inactiva' }}
+            </span>
+          </div>
+          <p class="desc" *ngIf="g.description">{{ g.description }}</p>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress">
+          <div class="bar">
+            <div
+              class="bar-fill"
+              [style.width.%]="progressFor(g.id).pct"
+              [attr.aria-valuenow]="progressFor(g.id).pct"
+            ></div>
+          </div>
+          <div class="progress-label">
+            <strong>{{ progressFor(g.id).done }}/{{ progressFor(g.id).target }}</strong>
+            <span>esta semana</span>
+          </div>
+        </div>
+
+        <!-- Overview diario -->
+        <div class="week">
+          <div class="day" *ngFor="let d of weekDays()">
+            <div class="day-label">{{ d.short }}</div>
+            <button
+              class="tick"
+              [class.on]="isChecked(g.id, d.iso)"
+              (click)="toggleDaily(g, d.iso)"
+              [disabled]="saving()"
+              [attr.aria-pressed]="isChecked(g.id, d.iso)"
+              [title]="d.label"
+            >
+              <span class="dot"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button class="btn ghost" (click)="openEdit(g)">Editar</button>
+          <button class="btn ghost" (click)="toggleActive(g)">
+            {{ g.is_active ? 'Pausar' : 'Reactivar' }}
+          </button>
+          <button class="btn danger" (click)="deleteGoal(g)">Eliminar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="empty bounce-in" *ngIf="!loading() && !filteredGoals().length">
+      <img src="https://illustrations.popsy.co/gray/goal.svg" alt="goals" />
+      <h3>Sin metas por aquí</h3>
+      <p>Empieza creando una meta semanal. ¡Pequeños hábitos, grandes cambios! 💪</p>
+      <button class="btn primary" (click)="openNew()">Crear meta</button>
+    </div>
+  </section>
+
+  <!-- Sheet Crear/Editar -->
+  <div class="sheet-backdrop" *ngIf="uiNewGoalOpen()" (click)="uiNewGoalOpen.set(false)"></div>
+  <div class="sheet slide-up" *ngIf="uiNewGoalOpen()">
+    <div class="sheet-header">
+      <h3>{{ uiEditGoalId() ? 'Editar meta' : 'Nueva meta' }}</h3>
+      <button class="icon" (click)="uiNewGoalOpen.set(false)" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="sheet-body">
+      <label class="field">
+        <span>Título</span>
+        <input
+          type="text"
+          [value]="form().title"
+          (input)="form.set({ ...form(), title: ($event.target as HTMLInputElement).value })"
+          placeholder="Ej. Aumentar vegetales"
+        />
+      </label>
+
+      <label class="field">
+        <span>Descripción (opcional)</span>
+        <textarea
+          rows="3"
+          [value]="form().description"
+          (input)="form.set({ ...form(), description: ($event.target as HTMLTextAreaElement).value })"
+          placeholder="Ej. Añadir 2 porciones de verduras al día"
+        ></textarea>
+      </label>
+
+      <label class="field">
+        <span>Objetivo semanal</span>
+        <input
+          type="number"
+          min="1"
+          max="7"
+          [value]="form().target_per_week"
+          (input)="form.set({ ...form(), target_per_week: Number(($event.target as HTMLInputElement).value) })"
+        />
+        <small>Veces por semana (1–7)</small>
+      </label>
+    </div>
+    <div class="sheet-footer">
+      <button class="btn" (click)="uiNewGoalOpen.set(false)">Cancelar</button>
+      <button class="btn primary" [disabled]="saving()" (click)="saveGoal()">
+        {{ saving() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </div>
+  </div>
+</div>
