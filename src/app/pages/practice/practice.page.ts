@@ -17,7 +17,7 @@ type Suggestion = {
 };
 
 type UserPractice = {
-  id: string;
+  id: string; // uuid
   user_id: string;
   practice_name: string;
   description: string | null;
@@ -32,7 +32,7 @@ type WeekMark = { date: string; done: boolean };
 @Component({
   standalone: true,
   selector: 'nt-practices',
-  imports: [CommonModule, RouterLink, LucideAngularModule],
+  imports: [CommonModule, LucideAngularModule],
   templateUrl: './practice.page.html',
   styleUrls: ['./practice.page.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,7 +72,7 @@ export default class PracticePage {
   // rango de semana
   private todayLocal = computed(() => {
     const d = new Date();
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     return d;
   });
 
@@ -87,9 +87,9 @@ export default class PracticePage {
     return arr;
   });
 
-  weekLabels = computed(() => this.weekDates().map(d =>
-    d.toLocaleDateString(undefined, { weekday: 'short' })
-  ));
+  weekLabels = computed(() =>
+    this.weekDates().map(d => d.toLocaleDateString(undefined, { weekday: 'short' }))
+  );
 
   async ngOnInit() {
     try {
@@ -127,7 +127,7 @@ export default class PracticePage {
     const uid = this.uid()!;
     // prácticas del usuario
     const { data: up, error } = await this.supabase.client
-      .from('user_practices')
+      .from('healthy_practices') // <— tabla real
       .select('id, user_id, practice_name, description, icon, frequency_target, sort_order, is_active')
       .eq('user_id', uid)
       .eq('is_active', true)
@@ -153,26 +153,26 @@ export default class PracticePage {
     // logs de la semana para todas las prácticas
     const ids = list.map(p => p.id);
     const { data: logs, error: lerr } = await this.supabase.client
-      .from('practice_logs')
-      .select('user_practice_id, date, done')
+      .from('practice_logs') // <— tabla real
+      .select('practice_id, logged_date')
       .eq('user_id', uid)
-      .in('user_practice_id', ids)
-      .gte('date', startIso)
-      .lte('date', endIso);
+      .in('practice_id', ids)
+      .gte('logged_date', startIso)
+      .lte('logged_date', endIso);
     if (lerr) throw lerr;
 
     // construir mapa fecha->done por práctica
     const byPractice: Record<string, Record<string, boolean>> = {};
     for (const p of list) byPractice[p.id] = {};
-    for (const r of (logs ?? []) as Array<{user_practice_id: string; date: string; done: boolean}>) {
-      byPractice[r.user_practice_id][r.date] = !!r.done;
+    for (const r of (logs ?? []) as Array<{ practice_id: string; logged_date: string }>) {
+      byPractice[r.practice_id][r.logged_date] = true; // existencia = done
     }
 
     const weekMarks: Record<string, WeekMark[]> = {};
     const weekCounts: Record<string, number> = {};
     for (const p of list) {
       const marks: WeekMark[] = this.weekDates().map(d => {
-        const ymd = d.toISOString().slice(0,10);
+        const ymd = d.toISOString().slice(0, 10);
         return { date: ymd, done: !!byPractice[p.id][ymd] };
       });
       weekMarks[p.id] = marks;
@@ -192,7 +192,7 @@ export default class PracticePage {
       const replacing = this.replacingId();
 
       const { data, error } = await this.supabase.client
-        .from('user_practices')
+        .from('healthy_practices') // <— tabla real
         .insert({
           user_id: uid,
           practice_name: s.practice_name,
@@ -201,6 +201,7 @@ export default class PracticePage {
           frequency_target: s.frequency_target ?? 7,
           sort_order: s.sort_order ?? 999,
           is_active: true,
+          // opcional: default_id: s.id,
         })
         .select('id')
         .single();
@@ -224,27 +225,25 @@ export default class PracticePage {
     try {
       this.saving.set(true);
       const uid = this.uid()!;
-      const today = this.todayLocal().toISOString().slice(0,10);
+      const today = this.todayLocal().toISOString().slice(0, 10);
 
       // ¿existe registro de hoy?
       const { data: existing } = await this.supabase.client
         .from('practice_logs')
-        .select('id, done')
+        .select('id')
         .eq('user_id', uid)
-        .eq('user_practice_id', p.id)
-        .eq('date', today)
+        .eq('practice_id', p.id)     // antes: user_practice_id
+        .eq('logged_date', today)    // antes: date
         .maybeSingle();
 
       if (existing?.id) {
-        // toggle: si estaba done => borrar; si no => set done=true
-        if (existing.done) {
-          await this.supabase.client.from('practice_logs').delete().eq('id', existing.id);
-        } else {
-          await this.supabase.client.from('practice_logs').update({ done: true }).eq('id', existing.id);
-        }
+        // toggle: si existe => borrar; si no existe => insertar
+        await this.supabase.client.from('practice_logs').delete().eq('id', existing.id);
       } else {
         await this.supabase.client.from('practice_logs').insert({
-          user_id: uid, user_practice_id: p.id, date: today, done: true
+          user_id: uid,
+          practice_id: p.id,
+          logged_date: today,
         });
       }
 
@@ -262,7 +261,7 @@ export default class PracticePage {
       if (!opts.silent && !confirm('¿Eliminar esta práctica? Se mantendrá el historial.')) return;
 
       await this.supabase.client
-        .from('user_practices')
+        .from('healthy_practices') // <— tabla real
         .update({ is_active: false })
         .eq('id', id);
 
@@ -272,7 +271,7 @@ export default class PracticePage {
     }
   }
 
-  // abrir panel de sugerencias (para nuevo o reemplazo)
+  // abrir/cerrar panel de sugerencias (para nuevo o reemplazo)
   openSuggestions(replaceId?: string) {
     this.replacingId.set(replaceId ?? null);
     this.showSuggestions.set(true);
