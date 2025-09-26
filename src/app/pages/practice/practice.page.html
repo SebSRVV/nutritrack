@@ -1,0 +1,112 @@
+<section class="pr-root">
+  @if (!loading()) {
+    <header class="container pr-header">
+      <div class="title-wrap">
+        <lucide-icon [img]="HeartPulseIcon"></lucide-icon>
+        <h1>Módulo 4: Prácticas saludables</h1>
+      </div>
+
+      <nav class="header-actions">
+        <button class="btn btn-primary" (click)="openSuggestions()">
+          <lucide-icon [img]="PlusIcon"></lucide-icon>
+          Añadir práctica
+        </button>
+      </nav>
+    </header>
+
+    <div class="container grid">
+
+      <!-- Mis prácticas -->
+      <section class="card">
+        <div class="card-head">
+          <h2>Mis prácticas</h2>
+          <small class="muted">Marca el cumplimiento diario y mira tu frecuencia semanal.</small>
+        </div>
+
+        @if (myPractices().length === 0) {
+          <div class="empty">
+            Aún no has agregado prácticas.
+            <button class="btn btn-link" (click)="openSuggestions()">Elegir sugeridas</button>
+          </div>
+        } @else {
+          <ul class="practice-list">
+            @for (p of myPractices(); track p.id) {
+              <li class="practice">
+                <div class="p-icon">{{ iconOrFallback(p.icon) }}</div>
+
+                <div class="p-main">
+                  <div class="p-title">
+                    <strong>{{ p.practice_name }}</strong>
+                    @if (p.frequency_target) {
+                      <small class="muted">Objetivo semanal: {{ p.frequency_target }}x</small>
+                    }
+                  </div>
+
+                  @if (p.description) {
+                    <div class="p-desc">{{ p.description }}</div>
+                  }
+
+                  <!-- Semana -->
+                  <div class="week">
+                    @for (m of marksFor(p.id); track m.date; let i = $index) {
+                      <div class="day" [class.done]="m.done">
+                        <span class="label">{{ weekLabels()[i] }}</span>
+                        <span class="dot"></span>
+                      </div>
+                    }
+                    <div class="week-count">{{ countFor(p.id) }}/7</div>
+                  </div>
+                </div>
+
+                <div class="p-actions">
+                  <button class="btn btn-chip" [disabled]="saving()" (click)="toggleToday(p)">
+                    <lucide-icon [img]="CheckIcon"></lucide-icon> Hoy
+                  </button>
+                  <button class="btn btn-ghost" (click)="openSuggestions(p.id)">
+                    <lucide-icon [img]="RefreshCwIcon"></lucide-icon> Reemplazar
+                  </button>
+                  <button class="btn btn-ghost danger" (click)="removePractice(p.id)">
+                    <lucide-icon [img]="Trash2Icon"></lucide-icon>
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <!-- Sugerencias (panel flotante) -->
+      @if (showSuggestions()) {
+        <section class="sheet">
+          <div class="sheet-head">
+            <h3>{{ replacingId() ? 'Reemplazar práctica' : 'Agregar práctica' }}</h3>
+            <button class="btn btn-ghost" (click)="closeSuggestions()">Cerrar</button>
+          </div>
+
+          <ul class="suggestions">
+            @for (s of suggestions(); track s.id) {
+              <li>
+                <div class="s-left">
+                  <div class="s-icon">{{ iconOrFallback(s.icon) }}</div>
+                  <div class="s-body">
+                    <div class="s-title">{{ s.practice_name }}</div>
+                    <div class="s-desc muted">{{ s.description }}</div>
+                  </div>
+                </div>
+                <button class="btn btn-primary" [disabled]="saving()" (click)="addSuggestion(s)">
+                  Seleccionar
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+
+    @if (err()) {
+      <p class="err">{{ err() }}</p>
+    }
+  } @else {
+    <div class="container loading">Cargando prácticas…</div>
+  }
+</section>

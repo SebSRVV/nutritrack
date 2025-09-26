@@ -17,10 +17,10 @@ export const routes: Routes = [
   },
   { path: 'dashboard',     loadComponent: () => import('./pages/dashboard/dashboard.page') },
   { path: 'goals', loadComponent: () => import('./pages/goals/goals.page').then(m => m.GoalsPage) },
-  // { path: 'goals/:id', loadComponent: () => import('./pages/goals/detail.page').then(m => m.GoalDetailPage) },
   { path: 'alimentation',  loadComponent: () => import('./pages/alimentation/alimentation.page') },
   { path: 'water',         loadComponent: () => import('./pages/water/water.page') },
   { path:'panel', loadComponent: () => import('./pages/panel/panel.page') },
+  {path: 'practices', loadComponent: () => import('./pages/practice/practice.page').then(m => m.default) },
 
   { path: '**', redirectTo: '' },
 ];

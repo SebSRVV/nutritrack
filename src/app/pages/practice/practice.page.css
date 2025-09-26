@@ -1,0 +1,139 @@
+/* Layout principal */
+.pr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 8px;
+}
+
+.title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.title-wrap h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.card {
+  background: #151a22;          /* panel */
+  border-radius: 12px;
+  padding: 16px;
+}
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.muted { opacity: .7; }
+
+/* Lista */
+.practice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.practice {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0f141b;          /* item */
+  border: 1px solid rgba(255,255,255,.04);
+}
+
+.p-icon { font-size: 24px; text-align: center; }
+.p-main { display: flex; flex-direction: column; gap: 6px; }
+.p-title { display: flex; align-items: baseline; gap: 8px; }
+.p-desc { font-size: .95rem; opacity: .85; }
+
+/* Semana */
+.week { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.day { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 36px; }
+.day .label { font-size: .70rem; opacity: .6; text-transform: capitalize; }
+.day .dot { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,.12); }
+.day.done .dot { background: rgba(0, 200, 120, .9); box-shadow: 0 0 0 2px rgba(0,200,120,.25); }
+.week-count { margin-left: 6px; font-weight: 700; opacity: .9; }
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.btn-primary { background: #2e7dff; color: #fff; }
+.btn-chip { background: rgba(255,255,255,.08); color: inherit; }
+.btn-ghost { background: transparent; color: inherit; }
+.btn-link { background: transparent; color: #2e7dff; padding: 0; }
+.btn.danger { color: #ff6b6b; }
+.btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+/* Sugerencias: panel flotante */
+.sheet {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  top: 16px;
+  width: min(460px, 92vw);
+  background: #151a22;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  overflow: auto;
+  z-index: 50;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.suggestions {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.suggestions li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0f141b;
+  border: 1px solid rgba(255,255,255,.04);
+}
+.s-left { display: grid; grid-template-columns: 36px 1fr; align-items: center; gap: 10px; }
+.s-icon { font-size: 22px; text-align: center; }
+.s-title { font-weight: 700; }
+.s-desc { font-size: .92rem; }
+
+.empty {
+  padding: 16px;
+  background: rgba(255,255,255,.06);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loading { padding: 32px; text-align: center; }
+.err { margin: 16px auto; color: #ff6b6b; text-align: center; }
