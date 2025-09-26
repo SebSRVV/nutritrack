@@ -1,168 +1,140 @@
 <div class="page fade-in" [@page]>
   <!-- Topbar -->
   <header class="topbar elevate slide-down">
-    <div class="left">
-      <h1>Metas alimentarias</h1>
-      <p class="muted">Semana: {{ weekRangeLabel() }}</p>
+    <!-- izquierda -->
+    <div class="topbar-left">
+      <button class="back" (click)="backToDashboard()" aria-label="Volver al dashboard" type="button">
+        <lucide-icon [img]="ChevronLeftIcon" class="icon-18"></lucide-icon>
+        Dashboard
+      </button>
     </div>
 
-    <div class="actions">
-      <div class="search">
-        <input type="text" placeholder="Buscar metas…" (input)="search.set($any($event.target).value)" />
-        <span class="kbd">/</span>
-      </div>
-
-      <select class="filter" (change)="filterActive.set($any($event.target).value)">
-        <option value="all">Todas</option>
-        <option value="active">Activas</option>
-        <option value="inactive">Inactivas</option>
-      </select>
-
-      <button class="btn primary pulse" (click)="openNew()">+ Nueva meta</button>
+    <!-- centro (título + semana) -->
+    <div class="topbar-center">
+      <h1 class="title">
+        <lucide-icon [img]="TrophyIcon" class="icon-20"></lucide-icon>
+        Metas alimentarias
+      </h1>
+      <p class="muted row">
+        <lucide-icon [img]="CalendarDaysIcon" class="icon-16"></lucide-icon>
+        Semana: {{ weekRangeLabel() }}
+      </p>
     </div>
+
+    <!-- derecha (placeholder para balance visual / futuros controles) -->
+    <div class="topbar-right"></div>
   </header>
 
   <!-- Content -->
   <section class="content">
-    <div class="container">
+    <div class="container page-main">
       <div class="loading" *ngIf="loading()">Cargando…</div>
 
       <div class="scroll-area" *ngIf="!loading()">
-        <!-- ===== Presets SIEMPRE visibles ===== -->
-        <div class="grid" aria-label="Metas sugeridas">
-          <div class="section-title">
-            <span>Metas sugeridas (presets)</span>
+        <!-- ===== Mis metas ===== -->
+        <div class="grid" aria-label="Mis metas">
+          <div class="section-title row">
+            <lucide-icon [img]="ListChecksIcon" class="icon-16"></lucide-icon>
+            <span>Mis metas</span>
           </div>
 
-          <div class="card hover-lift zoom-in clickable"
-               *ngFor="let d of defaultsWithState()"
-               (click)="goToDefault(d)"
-               title="Ver preset / activar">
+          <!-- Tarjetas -->
+          <div class="card clickable"
+               *ngFor="let g of goals(); trackBy: trackByGoal"
+               (click)="openEdit(g)"
+               title="Personalizar meta">
             <div class="card-head">
-              <div class="title-wrap" style="justify-content:space-between; gap:10px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <h3 [class.inactive]="!d.is_active">{{ d.goal_name }}</h3>
-                  <span class="badge" [class.badge-inactive]="!d.is_active">
-                    {{ d.is_active ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </div>
-
-                <!-- Pill activar/desactivar -->
-                <button class="switch"
-                        role="switch"
-                        [attr.aria-checked]="d.is_active"
-                        (click)="$event.stopPropagation(); toggleDefault(d)">
-                  <span class="dot"></span>
-                  {{ d.is_active ? 'Desactivar' : 'Activar' }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Progreso si está vinculado a un goal -->
-            <div class="progress" *ngIf="d.bound_goal_id">
-              <div class="bar">
-                <div class="bar-fill"
-                     [style.width.%]="progressFor(d.bound_goal_id).pct"
-                     [attr.aria-valuenow]="progressFor(d.bound_goal_id).pct"></div>
-              </div>
-              <div class="progress-label">
-                <strong>{{ progressFor(d.bound_goal_id).done }}/{{ progressFor(d.bound_goal_id).target }}</strong>
-                <span>esta semana</span>
-              </div>
-            </div>
-
-            <div class="card-actions">
-              <button class="btn ghost" *ngIf="d.is_active"
-                      (click)="$event.stopPropagation(); openEditDefault(d)">
-                Personalizar
-              </button>
-              <!-- Defaults no se eliminan -->
-            </div>
-          </div>
-        </div>
-
-        <!-- ===== Mis metas (tarjetas) ===== -->
-        <div class="grid" *ngIf="filteredGoals().length" aria-label="Mis metas">
-          <div class="section-title"><span>Mis metas</span></div>
-
-          <div class="card hover-lift zoom-in clickable"
-               *ngFor="let g of filteredGoals()"
-               (click)="goTo(g)"
-               title="Ir al detalle">
-            <div class="card-head">
-              <div class="title-wrap" style="justify-content:space-between; gap:10px;">
-                <div style="display:flex; align-items:center; gap:10px;">
+              <div class="title-wrap">
+                <div class="row">
+                  <lucide-icon [img]="TargetIcon" class="icon-16 soft"></lucide-icon>
                   <h3 [class.inactive]="!g.is_active">{{ g.goal_name }}</h3>
                   <span class="badge" [class.badge-inactive]="!g.is_active">
                     {{ g.is_active ? 'Activa' : 'Inactiva' }}
                   </span>
                 </div>
-                <span class="muted" style="font-size:12px;">Objetivo: {{ g.weekly_target }}/sem</span>
+
+                <!-- Switch -->
+                <button class="switch"
+                        role="switch"
+                        [attr.aria-checked]="g.is_active ? 'true' : 'false'"
+                        (click)="$event.stopPropagation(); toggleActiveSwitch(g)"
+                        aria-label="Cambiar estado de la meta"
+                        type="button">
+                  <span class="dot"></span>
+                  {{ g.is_active ? 'Activo' : 'Inactivo' }}
+                </button>
               </div>
+
               <p class="desc" *ngIf="g.description">{{ g.description }}</p>
             </div>
 
-            <div class="progress">
-              <div class="bar"><div class="bar-fill"
-                                    [style.width.%]="progressFor(g.id).pct"></div></div>
-              <div class="progress-label">
-                <strong>{{ progressFor(g.id).done }}/{{ progressFor(g.id).target }}</strong>
-                <span>esta semana</span>
+            <!-- Progreso -->
+            <ng-container *ngIf="progressFor(g.id) as p">
+              <div class="progress" [ngClass]="progressMood(p.pct)">
+                <div class="bar"><div class="bar-fill" [style.width.%]="p.pct"></div></div>
+                <div class="progress-label">
+                  <strong>{{ p.done }}/{{ p.target }}</strong>
+                  <span>esta semana</span>
+                </div>
               </div>
-            </div>
+            </ng-container>
 
+            <!-- Semana -->
             <div class="week">
-              <div class="day" *ngFor="let d of weekDays()">
+              <div class="day" *ngFor="let d of weekDays(); trackBy: trackByDay">
                 <div class="day-label">{{ d.short }}</div>
                 <button class="tick"
                         [class.on]="isChecked(g.id, d.iso)"
                         (click)="$event.stopPropagation(); toggleDaily(g, d.iso)"
                         [disabled]="saving()"
-                        [attr.aria-pressed]="isChecked(g.id, d.iso)"
-                        [title]="d.label">
+                        [attr.aria-pressed]="isChecked(g.id, d.iso) ? 'true' : 'false'"
+                        [title]="d.label"
+                        type="button">
                   <span class="dot"></span>
                 </button>
               </div>
             </div>
 
             <div class="card-actions">
-              <button class="btn ghost" (click)="$event.stopPropagation(); openEdit(g)">Editar</button>
-              <button class="btn ghost" (click)="$event.stopPropagation(); toggleActive(g)">
-                {{ g.is_active ? 'Pausar' : 'Reactivar' }}
+              <button class="btn ghost" (click)="$event.stopPropagation(); openEdit(g)" type="button">
+                <lucide-icon [img]="Settings2Icon" class="icon-16 v-2"></lucide-icon>
+                &nbsp;Personalizar
               </button>
-              <button class="btn danger" *ngIf="!g.default_id"
-                      (click)="$event.stopPropagation(); deleteGoal(g)">Eliminar</button>
             </div>
           </div>
         </div>
 
-        <!-- Empty: solo si no hay NADA que mostrar -->
-        <div class="empty bounce-in" *ngIf="!filteredGoals().length && !defaultsWithState().length">
+        <!-- Empty -->
+        <div class="empty fade-in" *ngIf="showEmpty()">
           <img src="https://illustrations.popsy.co/gray/goal.svg" alt="goals" />
           <h3>Sin metas por aquí</h3>
-          <p>Empieza creando una meta semanal. ¡Pequeños hábitos, grandes cambios! 💪</p>
-          <button class="btn primary" (click)="openNew()">Crear meta</button>
+          <p>Configura tus 3 metas base con el botón “Personalizar”.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Sheet Crear/Editar -->
+  <!-- Modal centrado: Personalizar -->
   <div class="sheet-backdrop" *ngIf="uiNewGoalOpen()" (click)="uiNewGoalOpen.set(false)"></div>
 
-  <div class="sheet slide-up" *ngIf="uiNewGoalOpen()">
-    <div class="sheet-header">
-      <h3>{{ uiEditGoalId() ? 'Editar meta' : 'Nueva meta' }}</h3>
-      <button class="icon" (click)="uiNewGoalOpen.set(false)" aria-label="Cerrar">✕</button>
+  <div class="dialog slide-up" *ngIf="uiNewGoalOpen()" role="dialog" aria-modal="true" aria-label="Personalizar meta">
+    <div class="dialog-header">
+      <div class="row">
+        <lucide-icon [img]="Settings2Icon" class="icon-18"></lucide-icon>
+        <h3 class="m0">Personalizar meta</h3>
+      </div>
+      <button class="icon" (click)="uiNewGoalOpen.set(false)" aria-label="Cerrar" type="button">
+        <lucide-icon [img]="XIcon" class="icon-18"></lucide-icon>
+      </button>
     </div>
 
-    <div class="sheet-body">
+    <div class="dialog-body">
       <label class="field">
         <span>Título</span>
         <input type="text"
                [value]="form().title"
                (input)="form.set({ title: $any($event.target).value, description: form().description, target_per_week: form().target_per_week })"
-               placeholder="Ej. Aumentar vegetales"/>
+               placeholder="Ej. Reducir azúcar"/>
       </label>
 
       <label class="field">
@@ -170,22 +142,28 @@
         <textarea rows="3"
                   [value]="form().description"
                   (input)="form.set({ title: form().title, description: $any($event.target).value, target_per_week: form().target_per_week })"
-                  placeholder="Ej. Añadir 2 porciones de verduras al día"></textarea>
+                  placeholder="Ej. Evitar bebidas y postres 3 días"></textarea>
       </label>
 
-      <label class="field">
-        <span>Objetivo semanal</span>
-        <input type="number" min="1" max="7"
-               [value]="form().target_per_week"
-               (input)="form.set({ title: form().title, description: form().description, target_per_week: +$any($event.target).value })"/>
-        <small>Veces por semana (1–7)</small>
+      <label class="field two">
+        <div>
+          <span>Objetivo semanal</span>
+          <input type="number" min="1" max="7"
+                 [value]="form().target_per_week"
+                 (input)="form.set({ title: form().title, description: form().description, target_per_week: +$any($event.target).value })"/>
+          <small>Veces por semana (1–7)</small>
+        </div>
       </label>
     </div>
 
-    <div class="sheet-footer">
-      <button class="btn" (click)="uiNewGoalOpen.set(false)">Cancelar</button>
-      <button class="btn primary" [disabled]="saving()" (click)="saveGoal()">
-        {{ saving() ? 'Guardando…' : 'Guardar' }}
+    <div class="dialog-footer">
+      <button class="btn" (click)="uiNewGoalOpen.set(false)" type="button">
+        <lucide-icon [img]="XIcon" class="icon-16 v-2"></lucide-icon>
+        &nbsp;Cancelar
+      </button>
+      <button class="btn primary" [disabled]="saving()" (click)="saveGoal()" type="button">
+        <lucide-icon [img]="SaveIcon" class="icon-16 v-2"></lucide-icon>
+        &nbsp;{{ saving() ? 'Guardando…' : 'Guardar' }}
       </button>
     </div>
   </div>
