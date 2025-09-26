@@ -72,6 +72,18 @@
           <div class="v">{{ goalsCount() }}</div>
           <a routerLink="/goals" class="more">Ver metas <lucide-icon [img]="ChevronRightIcon"></lucide-icon></a>
         </div>
+
+        <!-- KPI/atajo: Prácticas saludables -->
+        <a routerLink="/practices" class="kpi kpi--link kpi--practices" align="center">
+          <div class="k">
+            <lucide-icon [img]="HeartPulseIcon"></lucide-icon>
+            Prácticas saludables
+          </div>
+          <div class="v sm">Hábitos y bienestar</div>
+          <div class="hint">Sueño, pasos, pausas activas…</div>
+          <span class="more">Ir a prácticas <lucide-icon [img]="ChevronRightIcon"></lucide-icon></span>
+        </a>
+
       </div>
     </section>
 
@@ -98,6 +110,7 @@
         <span class="cta">Ir a agua</span>
       </a>
     </section>
+
 
     <!-- NUEVO: Panel inferior /panel -->
     <section class="card panel-alimentation">

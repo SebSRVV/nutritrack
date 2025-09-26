@@ -158,3 +158,19 @@
 /* Misc */
 .loading{ padding:3rem 0; color:var(--muted); text-align:center; }
 .err{ color:#ff9b9b; text-align:center; margin-top:.8rem; }
+
+.kpi.kpi--link {
+  cursor: pointer;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kpi.kpi--link .more {
+  margin-top: 6px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.kpi--practices .v.sm { font-size: 1.1rem; }
