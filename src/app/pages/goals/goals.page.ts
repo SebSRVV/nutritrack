@@ -1,210 +1,295 @@
-import { Component, OnInit, signal, computed, effect } from '@angular/core';
-import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
-import es from 'date-fns/locale/es';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink, Router } from '@angular/router';
+import { SupabaseService } from '../../core/supabase.service';
+import {
+  LucideAngularModule,
+  TargetIcon, CheckCircle2Icon, PauseCircleIcon, CalendarDaysIcon,
+  PlusIcon, SaveIcon, XIcon, PencilIcon, Trash2Icon, RocketIcon
+} from 'lucide-angular';
+import { trigger, transition, style, animate, query, stagger } from '@angular/animations';
 
-// ==== Supabase Config (usa tus envs) ====
-const SUPABASE_URL = 'https://TU-PROJECT.supabase.co';
-const SUPABASE_ANON_KEY = 'TU-ANON-KEY';
-const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/** ===== Tipos ===== */
+type WeekDay = { label: string; iso: string; short: string };
 
-// ==== Tipos base ====
-export interface Goal {
+type Goal = {
   id: string;
   user_id: string;
-  title: string;
+  goal_name: string;
   description?: string | null;
-  target_per_week: number;     // cuántas veces por semana
+  weekly_target: number;  // 1–7
   is_active: boolean;
   created_at: string;
-}
+  default_id?: number | null; // <- referencia a default_goals.id si proviene de un preset
+};
 
-export interface GoalProgress {
-  id: string;
-  goal_id: string;
-  date: string;                // YYYY-MM-DD
-  value: number;               // 0 o 1 (cumplido ese día)
-  created_at: string;
+type GoalProgressRow = { id: string; goal_id: string; log_date: string; value: number };
+
+type DefaultGoal = {
+  id: number;
+  goal_name: string;
+  goal_type: string;
+  weekly_target: number;
+  unit: string;
+  target_value?: number;
+  subtitle?: string | null;
+};
+
+type DefaultWithState = DefaultGoal & { is_active: boolean; bound_goal_id?: string | null };
+
+/** ===== Helpers de fecha ===== */
+function startOfWeekMonday(d0: Date): Date {
+  const d = new Date(d0);
+  const day = d.getDay();                // 0=Dom..6=Sáb
+  const diff = (day === 0 ? -6 : 1 - day); // mover a lunes
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
 }
+function endOfWeekSunday(d0: Date): Date {
+  const s = startOfWeekMonday(d0);
+  const e = new Date(s);
+  e.setDate(s.getDate() + 6);
+  e.setHours(23,59,59,999);
+  return e;
+}
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = `${d.getMonth()+1}`.padStart(2,'0');
+  const day = `${d.getDate()}`.padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+const fmtRange = new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short' });
+const fmtDayFull  = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: '2-digit' });
+const fmtDayShort = new Intl.DateTimeFormat('es-PE', { weekday: 'short' });
 
 @Component({
-  selector: 'app-goals-page',
+  standalone: true,
+  selector: 'nt-goals',
+  imports: [CommonModule, RouterLink, LucideAngularModule],
   templateUrl: './goals.page.html',
   styleUrls: ['./goals.page.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  animations: [
+    trigger('page', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate('280ms cubic-bezier(.2,.8,.2,1)', style({ opacity: 1, transform: 'none' })),
+        query('.card, .suggested-item', [
+          style({ opacity: 0, transform: 'translateY(6px) scale(.98)' }),
+          stagger(24, animate('220ms cubic-bezier(.2,.8,.2,1)', style({ opacity: 1, transform: 'none' })))
+        ], { optional: true })
+      ])
+    ])
+  ]
 })
-export class GoalsPage implements OnInit {
-  // Estado
-  userId = signal<string | null>(null);
-  loading = signal<boolean>(true);
-  saving = signal<boolean>(false);
+export class GoalsPage {
+  // Icons
+  readonly TargetIcon = TargetIcon;
+  readonly CheckCircle2Icon = CheckCircle2Icon;
+  readonly PauseCircleIcon = PauseCircleIcon;
+  readonly CalendarDaysIcon = CalendarDaysIcon;
+  readonly PlusIcon = PlusIcon;
+  readonly SaveIcon = SaveIcon;
+  readonly XIcon = XIcon;
+  readonly PencilIcon = PencilIcon;
+  readonly Trash2Icon = Trash2Icon;
+  readonly RocketIcon = RocketIcon;
+
+  private supabase = inject(SupabaseService);
+  private router = inject(Router);
+
+  /** ===== Estado base ===== */
+  loading = signal(true);
+  err = signal<string | null>(null);
+  uid = signal<string | null>(null);
+
   goals = signal<Goal[]>([]);
-  weekDays = signal<{ label: string; iso: string; short: string }[]>([]);
-  progressMap = signal<Record<string, Record<string, number>>>({}); // goalId -> { 'YYYY-MM-DD': 0|1 }
-  uiNewGoalOpen = signal<boolean>(false);
+  suggested = signal<DefaultGoal[]>([]); // siempre visible
+
+  // map de defaults activos -> id de goal de usuario
+  defaultsState = signal<Record<number, { goalId: string }>>({});
+
+  // Semana y progreso
+  weekDays = signal<WeekDay[]>([]);
+  progressMap = signal<Record<string, Record<string, number>>>({}); // goalId -> { iso: 0|1 }
+
+  // UI
+  saving = signal(false);
+  uiNewGoalOpen = signal(false);
   uiEditGoalId = signal<string | null>(null);
+
   filterActive = signal<'all' | 'active' | 'inactive'>('all');
   search = signal<string>('');
 
-  // Form meta (crear/editar)
+  // Form
   form = signal<{ title: string; description: string; target_per_week: number }>({
-    title: '',
-    description: '',
-    target_per_week: 5,
+    title: '', description: '', target_per_week: 5
   });
 
-  // Computados
+  /** ====== Computados ====== */
+  weekRangeLabel = computed(() => {
+    const { start, end } = this.getWeekRange(new Date());
+    return `${fmtRange.format(start)} — ${fmtRange.format(end)}`;
+  });
+
   filteredGoals = computed(() => {
     const q = this.search().trim().toLowerCase();
     const f = this.filterActive();
+    // Sólo metas personales (no-presets) o todas? mantenemos todas, pero la UI oculta "Eliminar" si default_id
     return this.goals().filter(g => {
       const byStatus = f === 'all' ? true : f === 'active' ? g.is_active : !g.is_active;
-      const byText = !q || g.title.toLowerCase().includes(q) || (g.description ?? '').toLowerCase().includes(q);
+      const byText = !q || g.goal_name.toLowerCase().includes(q) || (g.description ?? '').toLowerCase().includes(q);
       return byStatus && byText;
     });
   });
 
-  weekRangeLabel = computed(() => {
-    const { start, end } = this.getWeekRange(new Date());
-    const f = (d: Date) => format(d, "dd 'de' MMM", { locale: es });
-    return `${f(start)} — ${f(end)}`;
+  // Defaults combinados con su estado actual
+  defaultsWithState = computed<DefaultWithState[]>(() => {
+    const defs = this.suggested();
+    const st = this.defaultsState();
+    return defs.map(d => ({
+      ...d,
+      is_active: !!st[d.id],
+      bound_goal_id: st[d.id]?.goalId ?? null
+    }));
   });
 
-  constructor() {}
-
+  /** ====== Ciclo de vida ====== */
   async ngOnInit() {
-    await this.ensureAuth();
-    this.buildWeekDays();
-    await this.loadGoalsAndProgress();
-    this.loading.set(false);
-  }
+    try {
+      this.loading.set(true);
 
-  // ==== Auth (saca user actual) ====
-  private async ensureAuth() {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data?.user) {
-      // Si no hay sesión, intenta con getSession (o redirige según tu app)
-      const { data: sess } = await supabase.auth.getSession();
-      const uid = sess?.session?.user?.id ?? null;
-      this.userId.set(uid);
-    } else {
-      this.userId.set(data.user.id);
+      const { data: ures, error: uerr } = await this.supabase.client.auth.getUser();
+      if (uerr) throw uerr;
+      const uid = ures.user?.id;
+      if (!uid) throw new Error('Sesión no válida');
+      this.uid.set(uid);
+
+      this.buildWeekDays();
+      await this.loadGoalsAndProgress();
+      await this.loadSuggestedDefaults();
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo cargar Metas.');
+    } finally {
+      this.loading.set(false);
     }
   }
 
-  // ==== Semana actual y días ====
+  /** ====== Semana actual ====== */
   private getWeekRange(date: Date) {
-    // Semana inicia lunes (weekStartsOn:1)
-    const start = startOfWeek(date, { weekStartsOn: 1 });
-    const end = endOfWeek(date, { weekStartsOn: 1 });
-    return { start, end };
+    return { start: startOfWeekMonday(date), end: endOfWeekSunday(date) };
   }
-
   private buildWeekDays() {
-    const { start, end } = this.getWeekRange(new Date());
-    const days = eachDayOfInterval({ start, end }).map(d => {
-      const iso = format(d, 'yyyy-MM-dd');
-      return {
-        label: format(d, 'EEEE dd', { locale: es }), // lunes 23
-        iso,
-        short: format(d, 'EEE', { locale: es }),     // lun, mar...
-      };
-    });
+    const { start } = this.getWeekRange(new Date());
+    const days: WeekDay[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      days.push({ label: fmtDayFull.format(d), iso: toIsoDate(d), short: fmtDayShort.format(d) });
+    }
     this.weekDays.set(days);
   }
 
-  // ==== Carga de datos ====
+  /** ====== Carga principal ====== */
   private async loadGoalsAndProgress() {
-    const uid = this.userId();
-    if (!uid) return;
-
+    const uid = this.uid()!;
     // metas
-    const { data: goals, error: gErr } = await supabase
-      .from('goals')
-      .select('*')
+    const { data: rows, error: gErr } = await this.supabase.client
+      .from('user_goals')
+      .select('id, user_id, goal_name, description, weekly_target, is_active, created_at, default_id')
       .eq('user_id', uid)
       .order('created_at', { ascending: true });
 
-    if (gErr) {
-      console.error(gErr);
-      return;
-    }
-    this.goals.set(goals ?? []);
+    if (gErr) throw gErr;
 
-    // progreso semana
+    const list: Goal[] = (rows ?? []).map((g: any) => ({
+      id: g.id,
+      user_id: g.user_id,
+      goal_name: g.goal_name ?? g.title ?? '',
+      description: g.description ?? null,
+      weekly_target: Number(g.weekly_target ?? g.target_per_week ?? 1),
+      is_active: g.is_active ?? true,
+      created_at: g.created_at,
+      default_id: g.default_id ?? null,
+    }));
+    this.goals.set(list);
+
+    // map default_id -> goalId
+    const map: Record<number, { goalId: string }> = {};
+    for (const g of list) if (g.default_id) map[g.default_id] = { goalId: g.id };
+    this.defaultsState.set(map);
+
+    // progreso de la semana
     const { start, end } = this.getWeekRange(new Date());
-    const startIso = format(start, 'yyyy-MM-dd');
-    const endIso = format(end, 'yyyy-MM-dd');
+    const startIso = toIsoDate(start);
+    const endIso = toIsoDate(end);
 
-    if (!goals?.length) {
-      this.progressMap.set({});
-      return;
-    }
+    if (!list.length) { this.progressMap.set({}); return; }
 
-    const goalIds = goals.map(g => g.id);
-    const { data: prog, error: pErr } = await supabase
-      .from('goal_progress')
-      .select('*')
+    const goalIds = list.map(g => g.id);
+    const { data: prog } = await this.supabase.client
+      .from('user_goal_progress')
+      .select('id, goal_id, log_date, value')
       .in('goal_id', goalIds)
-      .gte('date', startIso)
-      .lte('date', endIso);
+      .gte('log_date', startIso)
+      .lte('log_date', endIso);
 
-    if (pErr) {
-      console.error(pErr);
-      return;
-    }
-
-    const map: Record<string, Record<string, number>> = {};
-    for (const g of goals) map[g.id] = {};
-    for (const d of this.weekDays()) {
-      for (const g of goals) map[g.id][d.iso] = 0;
-    }
-    (prog ?? []).forEach(e => {
-      if (!map[e.goal_id]) map[e.goal_id] = {};
-      map[e.goal_id][e.date] = e.value;
+    const pm: Record<string, Record<string, number>> = {};
+    for (const g of list) pm[g.id] = {};
+    for (const d of this.weekDays()) for (const g of list) pm[g.id][d.iso] = 0;
+    (prog ?? []).forEach((e: GoalProgressRow) => {
+      if (!pm[e.goal_id]) pm[e.goal_id] = {};
+      pm[e.goal_id][e.log_date] = Number(e.value ?? 0);
     });
-    this.progressMap.set(map);
+    this.progressMap.set(pm);
   }
 
-  // ==== Helpers UI ====
+  private async loadSuggestedDefaults() {
+    // Trae todos los defaults (siempre visibles)
+    const { data: defs } = await this.supabase.client
+      .from('default_goals')
+      .select('id, goal_name, goal_type, weekly_target, unit, target_value, subtitle')
+      .order('id');
+
+    this.suggested.set(defs ?? []);
+  }
+
+  /** ====== UI helpers ====== */
+  isChecked(goalId: string, isoDate: string) {
+    return (this.progressMap()[goalId]?.[isoDate] ?? 0) === 1;
+  }
   progressFor(goalId: string) {
     const pm = this.progressMap();
     const days = this.weekDays();
     const done = days.reduce((acc, d) => acc + (pm[goalId]?.[d.iso] ?? 0), 0);
     const goal = this.goals().find(g => g.id === goalId);
-    const target = goal?.target_per_week ?? 1;
+    const target = Math.max(1, goal?.weekly_target ?? 1);
     const pct = Math.min(100, Math.round((done / target) * 100));
     return { done, target, pct };
   }
 
-  isChecked(goalId: string, isoDate: string): boolean {
-    return (this.progressMap()[goalId]?.[isoDate] ?? 0) === 1;
-  }
-
-  // ==== Acciones ====
-  async toggleDaily(goal: Goal, isoDate: string) {
+  /** ====== Acciones ====== */
+  async toggleDaily(g: Goal, isoDate: string) {
     try {
       this.saving.set(true);
-      const current = this.isChecked(goal.id, isoDate) ? 1 : 0;
-      const next = current === 1 ? 0 : 1;
+      const next = this.isChecked(g.id, isoDate) ? 0 : 1;
 
-      // upsert por (goal_id, date)
-      const { error } = await supabase
-        .from('goal_progress')
+      const { error } = await this.supabase.client
+        .from('user_goal_progress')
         .upsert(
-          { goal_id: goal.id, date: isoDate, value: next },
-          { onConflict: 'goal_id,date' }
+          { user_id: this.uid(), goal_id: g.id, log_date: isoDate, value: next },
+          { onConflict: 'goal_id,log_date' }
         );
-
       if (error) throw error;
 
-      // Actualiza estado local
       const pm = { ...this.progressMap() };
-      pm[goal.id] = { ...(pm[goal.id] ?? {}) };
-      pm[goal.id][isoDate] = next;
+      pm[g.id] = { ...(pm[g.id] ?? {}) };
+      pm[g.id][isoDate] = next;
       this.progressMap.set(pm);
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo actualizar el día. Intenta nuevamente.');
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo actualizar el día.');
+      setTimeout(() => this.err.set(null), 2000);
     } finally {
       this.saving.set(false);
     }
@@ -212,89 +297,146 @@ export class GoalsPage implements OnInit {
 
   openNew() {
     this.form.set({ title: '', description: '', target_per_week: 5 });
-    this.uiNewGoalOpen.set(true);
     this.uiEditGoalId.set(null);
+    this.uiNewGoalOpen.set(true);
+  }
+  openEdit(g: Goal) {
+    this.form.set({ title: g.goal_name, description: g.description ?? '', target_per_week: g.weekly_target });
+    this.uiEditGoalId.set(g.id);
+    this.uiNewGoalOpen.set(true);
   }
 
-  openEdit(goal: Goal) {
-    this.form.set({
-      title: goal.title,
-      description: goal.description ?? '',
-      target_per_week: goal.target_per_week,
-    });
-    this.uiEditGoalId.set(goal.id);
-    this.uiNewGoalOpen.set(true);
+  openEditDefault(d: DefaultWithState) {
+    const g = this.goals().find(x => x.id === d.bound_goal_id);
+    if (!g) return;
+    this.openEdit(g);
   }
 
   async saveGoal() {
-    const uid = this.userId();
-    if (!uid) return;
-
+    const uid = this.uid(); if (!uid) return;
     const payload = {
-      title: this.form().title.trim(),
-      description: this.form().description.trim(),
-      target_per_week: Math.min(7, Math.max(1, Number(this.form().target_per_week))),
-      is_active: true,
       user_id: uid,
+      goal_name: this.form().title.trim(),
+      description: this.form().description.trim(),
+      weekly_target: Math.min(7, Math.max(1, Number(this.form().target_per_week))),
+      is_active: true,
+      default_id: null
     };
-
-    if (!payload.title) {
-      alert('Ponle un título a tu meta.');
-      return;
-    }
+    if (!payload.goal_name) { this.err.set('Ponle un título a tu meta.'); setTimeout(()=>this.err.set(null),1800); return; }
 
     try {
       this.saving.set(true);
       if (this.uiEditGoalId()) {
-        const { error } = await supabase
-          .from('goals')
-          .update({
-            title: payload.title,
-            description: payload.description,
-            target_per_week: payload.target_per_week,
-          })
+        const { error } = await this.supabase.client
+          .from('user_goals')
+          .update({ goal_name: payload.goal_name, description: payload.description, weekly_target: payload.weekly_target })
           .eq('id', this.uiEditGoalId());
-
         if (error) throw error;
+        this.uiNewGoalOpen.set(false);
+        this.uiEditGoalId.set(null);
       } else {
-        const { error } = await supabase.from('goals').insert(payload);
+        const { data, error } = await this.supabase.client
+          .from('user_goals')
+          .insert(payload)
+          .select('id')
+          .single();
         if (error) throw error;
+        this.uiNewGoalOpen.set(false);
+        this.uiEditGoalId.set(null);
+        if (data?.id) {
+          // Navegar al detalle del recien creado
+          this.goTo({ ...payload, id: data.id, created_at: new Date().toISOString() } as any);
+        }
       }
-
       await this.loadGoalsAndProgress();
-      this.uiNewGoalOpen.set(false);
-      this.uiEditGoalId.set(null);
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo guardar la meta.');
+      await this.loadSuggestedDefaults();
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo guardar la meta.'); setTimeout(()=>this.err.set(null),2000);
     } finally {
       this.saving.set(false);
     }
   }
 
-  async toggleActive(goal: Goal) {
+  async toggleActive(g: Goal) {
     try {
-      const { error } = await supabase
-        .from('goals')
-        .update({ is_active: !goal.is_active })
-        .eq('id', goal.id);
+      const { error } = await this.supabase.client.from('user_goals').update({ is_active: !g.is_active }).eq('id', g.id);
       if (error) throw error;
       await this.loadGoalsAndProgress();
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo actualizar el estado.');
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo cambiar el estado.'); setTimeout(()=>this.err.set(null),2000);
     }
   }
 
-  async deleteGoal(goal: Goal) {
-    if (!confirm(`¿Eliminar la meta "${goal.title}"? Esta acción no se puede deshacer.`)) return;
+  async deleteGoal(g: Goal) {
+    // No se eliminan metas que provienen de un preset
+    if (g.default_id) return;
+    if (!confirm(`¿Eliminar la meta "${g.goal_name}"?`)) return;
     try {
-      const { error } = await supabase.from('goals').delete().eq('id', goal.id);
+      const { error } = await this.supabase.client.from('user_goals').delete().eq('id', g.id);
       if (error) throw error;
       await this.loadGoalsAndProgress();
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo eliminar la meta.');
+      await this.loadSuggestedDefaults();
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo eliminar la meta.'); setTimeout(()=>this.err.set(null),2000);
+    }
+  }
+
+  /** Activar / desactivar un preset (default_goals) con el pill */
+  async toggleDefault(d: DefaultWithState) {
+    const uid = this.uid(); if (!uid) return;
+    try {
+      if (d.is_active && d.bound_goal_id) {
+        // Pausar el goal vinculado (no borrar)
+        const { error } = await this.supabase.client
+          .from('user_goals')
+          .update({ is_active: false })
+          .eq('id', d.bound_goal_id);
+        if (error) throw error;
+      } else {
+        // Activar: si ya existe meta de ese default, reactivarla; si no, crear una
+        const existing = this.goals().find(g => g.default_id === d.id);
+        if (existing) {
+          const { error } = await this.supabase.client
+            .from('user_goals')
+            .update({ is_active: true })
+            .eq('id', existing.id);
+          if (error) throw error;
+        } else {
+          const payload = {
+            user_id: uid,
+            goal_name: d.goal_name,
+            description: null,
+            weekly_target: Math.min(7, Math.max(1, Number(d.weekly_target ?? d.target_value ?? 3))),
+            is_active: true,
+            default_id: d.id
+          };
+          const { data, error } = await this.supabase.client
+            .from('user_goals')
+            .insert(payload)
+            .select('id')
+            .single();
+          if (error) throw error;
+          if (data?.id) {
+            // opcionalmente ir al detalle al activarlo
+            this.goTo({ ...payload, id: data.id, created_at: new Date().toISOString() } as any);
+          }
+        }
+      }
+      await this.loadGoalsAndProgress();
+    } catch (e: any) {
+      this.err.set(e?.message ?? 'No se pudo cambiar el preset.'); setTimeout(()=>this.err.set(null),2000);
+    }
+  }
+
+  /** Navegación */
+  goTo(g: Goal) { this.router.navigate(['/goals', g.id]); }
+  goToDefault(d: DefaultWithState) {
+    if (d.bound_goal_id) {
+      const g = this.goals().find(x => x.id === d.bound_goal_id);
+      if (g) this.goTo(g);
+    } else {
+      // si está inactivo, activarlo al clic
+      this.toggleDefault(d);
     }
   }
 }
